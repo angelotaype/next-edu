@@ -2,7 +2,6 @@ import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import Sidebar from '@/components/Sidebar'
 import StudentsTable, { type StudentRow } from './StudentsTable'
 
 export const dynamic = 'force-dynamic'
@@ -112,32 +111,26 @@ async function StudentsData() {
 
 export default function StudentsPage() {
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-
-      <div className="flex-1 flex flex-col min-w-0">
-        <main className="flex-1 p-6 max-w-6xl w-full mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Alumnos</h1>
-              <p className="text-sm text-gray-500">Lista global de alumnos matriculados.</p>
-            </div>
-            <Link
-              href="/students/nuevo"
-              className="inline-flex items-center gap-2 bg-[#2563EB] hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold px-4 py-2.5 rounded-lg shadow-sm transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Nueva matrícula
-            </Link>
-          </div>
-
-          <Suspense fallback={<StudentsSkeleton />}>
-            <StudentsData />
-          </Suspense>
-        </main>
+    <div className="mx-auto w-full max-w-6xl">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Alumnos</h1>
+          <p className="text-sm text-gray-500">Lista global de alumnos matriculados.</p>
+        </div>
+        <Link
+          href="/students/nuevo"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 active:scale-[0.98] sm:w-auto"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Nueva matrícula
+        </Link>
       </div>
+
+      <Suspense fallback={<StudentsSkeleton />}>
+        <StudentsData />
+      </Suspense>
     </div>
   )
 }

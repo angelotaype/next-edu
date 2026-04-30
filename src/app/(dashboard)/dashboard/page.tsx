@@ -2,7 +2,6 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import Sidebar from '@/components/Sidebar'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -272,16 +271,10 @@ async function DashboardData() {
 
 export default function DashboardPage() {
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-
-      <div className="flex-1 flex flex-col min-w-0">
-        <main className="flex-1 p-6 max-w-5xl w-full mx-auto">
-          <Suspense fallback={<DashboardSkeleton />}>
-            <DashboardData />
-          </Suspense>
-        </main>
-      </div>
+    <div className="mx-auto w-full max-w-5xl">
+      <Suspense fallback={<DashboardSkeleton />}>
+        <DashboardData />
+      </Suspense>
     </div>
   )
 }

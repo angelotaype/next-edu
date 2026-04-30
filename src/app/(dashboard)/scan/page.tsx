@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import Sidebar from '@/components/Sidebar'
 import { createClient } from '@/lib/supabase/client'
 
 type ScanStatus = 'idle' | 'scanning' | 'success' | 'error' | 'rate_limited'
@@ -127,27 +126,23 @@ export default function ScanPage() {
   const badge = student ? (DEBT_BADGE[student.debt_status] ?? { label: student.debt_status.toUpperCase(), className: 'bg-gray-500 text-white' }) : null
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
+    <div className="mx-auto w-full max-w-2xl">
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <main className="flex-1 p-6 max-w-2xl w-full mx-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-gray-900">Escáner QR</h1>
+        <p className="text-sm text-gray-500">Apunta la cámara al código QR del alumno</p>
+      </div>
 
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-xl font-bold text-gray-900">Escáner QR</h1>
-            <p className="text-sm text-gray-500">Apunta la cámara al código QR del alumno</p>
-          </div>
-
-          {/* QR Viewport */}
-          <div className="relative bg-black rounded-2xl overflow-hidden aspect-video mb-4 shadow-xl">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-            />
+      {/* QR Viewport */}
+      <div className="relative mb-4 aspect-video overflow-hidden rounded-2xl bg-black shadow-xl">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="h-full w-full object-cover"
+        />
 
             {/* Blue corner frame overlay */}
             {status === 'scanning' && (
@@ -194,30 +189,30 @@ export default function ScanPage() {
                 <p className="text-gray-500 text-sm">Iniciando cámara...</p>
               </div>
             )}
-          </div>
+      </div>
 
-          {/* Manual input */}
-          <form onSubmit={handleManualSubmit} className="flex gap-2 mb-6">
-            <input
-              type="text"
-              value={manualCode}
-              onChange={(e) => setManualCode(e.target.value)}
-              placeholder="Ingresar código QR manualmente..."
-              className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <button
-              type="submit"
-              disabled={!manualCode.trim()}
-              className="px-4 py-2.5 bg-[#2563EB] hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              Buscar
-            </button>
-          </form>
+      {/* Manual input */}
+      <form onSubmit={handleManualSubmit} className="mb-6 flex flex-col gap-2 sm:flex-row">
+        <input
+          type="text"
+          value={manualCode}
+          onChange={(e) => setManualCode(e.target.value)}
+          placeholder="Ingresar código QR manualmente..."
+          className="min-h-12 flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+          type="submit"
+          disabled={!manualCode.trim()}
+          className="min-h-12 rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:bg-blue-300 sm:min-w-28"
+        >
+          Buscar
+        </button>
+      </form>
 
           {/* Student result card */}
-          {student && status === 'success' && (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-4">
-              <div className="flex items-center gap-4">
+      {student && status === 'success' && (
+        <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-4">
                 {/* Photo */}
                 <div className="w-16 h-16 rounded-full bg-gray-100 overflow-hidden flex-shrink-0 border-2 border-gray-200">
                   {student.photo_url ? (
@@ -250,41 +245,37 @@ export default function ScanPage() {
                     {badge.label}
                   </span>
                 )}
-              </div>
+          </div>
 
-              <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-                <p className="text-xs text-gray-400">
-                  Escaneado: {new Date(student.scanned_at).toLocaleTimeString('es-PE')}
-                </p>
-                <a href={`/students/${student.student_id}`}
-                  className="text-xs text-blue-600 hover:underline font-medium">
-                  Ver perfil →
-                </a>
-              </div>
-            </div>
-          )}
+          <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
+            <p className="text-xs text-gray-400">
+              Escaneado: {new Date(student.scanned_at).toLocaleTimeString('es-PE')}
+            </p>
+            <a href={`/students/${student.student_id}`}
+              className="text-xs font-medium text-blue-600 hover:underline">
+              Ver perfil →
+            </a>
+          </div>
+        </div>
+      )}
 
-          {/* Next scan button */}
-          {status === 'success' && (
-            <button
-              onClick={handleReset}
-              className="w-full bg-[#2563EB] hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3 px-4 rounded-xl text-sm transition-colors shadow-sm"
-            >
-              Siguiente escaneo
-            </button>
-          )}
+      {status === 'success' && (
+        <button
+          onClick={handleReset}
+          className="w-full rounded-xl bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 active:scale-[0.98]"
+        >
+          Siguiente escaneo
+        </button>
+      )}
 
-          {(status === 'error' || status === 'rate_limited') && (
-            <button
-              onClick={handleReset}
-              className="w-full bg-gray-700 hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-xl text-sm transition-colors"
-            >
-              Reintentar
-            </button>
-          )}
-
-        </main>
-      </div>
+      {(status === 'error' || status === 'rate_limited') && (
+        <button
+          onClick={handleReset}
+          className="w-full rounded-xl bg-gray-700 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800 active:scale-[0.98]"
+        >
+          Reintentar
+        </button>
+      )}
     </div>
   )
 }
