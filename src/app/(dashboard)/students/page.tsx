@@ -47,7 +47,7 @@ async function StudentsData() {
     supabase
       .from('students')
       .select(`
-        id, student_code, nombres, apellidos, estado_matricula, photo_url,
+        id, code, nombres, apellidos, estado_matricula, photo_url,
         classroom_id,
         classrooms ( id, name, cycle_id, cycles ( id, name ) )
       `)
@@ -79,7 +79,7 @@ async function StudentsData() {
     const debt = debtMap.get(s.id) ?? { amount: 0, status: 'sin_plan' }
     return {
       id: s.id,
-      code: s.student_code ?? '—',
+      code: s.code ?? '—',
       nombres: s.nombres ?? '',
       apellidos: s.apellidos ?? '',
       photoUrl: s.photo_url ?? null,
