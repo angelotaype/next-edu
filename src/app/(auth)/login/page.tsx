@@ -199,43 +199,44 @@ export default function LoginPage() {
           transition={{ duration: 0.32, delay: 0.1, ease: 'easeOut' }}
           className="relative hidden overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 lg:flex"
         >
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.16),transparent_30%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.26),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.16),transparent_28%)]" />
           <div className="absolute inset-y-10 left-10 w-32 rounded-full bg-white/10 blur-3xl" />
           <div className="absolute bottom-10 right-10 h-48 w-48 rounded-full bg-sky-300/10 blur-3xl" />
+          <div className="absolute right-16 top-16 h-40 w-40 rounded-full border border-white/10 bg-white/5 blur-2xl" />
 
           <div className="relative flex w-full flex-col justify-between p-10 text-white xl:p-14">
-            <div className="max-w-sm">
-              <div className="mb-6 inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-blue-100">
-                ERP de cobranza escolar
+            <div className="max-w-md">
+              <div className="mb-7 inline-flex rounded-full border border-white/20 bg-white/12 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-50 shadow-sm backdrop-blur-md">
+                Plataforma de gestión escolar
               </div>
 
-              <h2 className="text-3xl font-bold tracking-tight">
-                Control académico y financiero para la operación diaria del colegio.
+              <h2 className="max-w-md text-4xl font-bold tracking-tight leading-tight text-white">
+                Controla pagos, asistencia y operación escolar desde un solo panel.
               </h2>
-              <p className="mt-4 text-sm leading-relaxed text-blue-100/90">
-                Un solo panel para matrícula, morosidad, pagos y asistencia QR con enfoque operativo.
+              <p className="mt-5 max-w-md text-base leading-relaxed text-blue-100/90">
+                Reduce morosidad, detecta alertas tempranas y toma mejores decisiones todos los días.
               </p>
             </div>
 
             <div className="grid gap-4">
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-sm font-semibold">Pagos y morosidad</p>
-                <p className="mt-1 text-sm text-blue-100/85">
-                  Identifica deuda pendiente y registra abonos sin salir del flujo operativo.
+              <div className="rounded-3xl border border-white/16 bg-white/12 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.16)] backdrop-blur-md">
+                <p className="text-base font-semibold text-white">Morosidad bajo control</p>
+                <p className="mt-2 text-sm leading-relaxed text-blue-100/88">
+                  Identifica deuda vencida, prioriza casos críticos y registra pagos sin perder seguimiento.
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-sm font-semibold">Asistencia QR</p>
-                <p className="mt-1 text-sm text-blue-100/85">
-                  Consulta el estado del alumno en segundos desde tablet o escritorio.
+              <div className="rounded-3xl border border-white/16 bg-white/12 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.16)] backdrop-blur-md">
+                <p className="text-base font-semibold text-white">Alertas de asistencia</p>
+                <p className="mt-2 text-sm leading-relaxed text-blue-100/88">
+                  Detecta patrones de inasistencia a tiempo e intervén antes de que afecten al alumno.
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                <p className="text-sm font-semibold">Multi-tenant con RLS</p>
-                <p className="mt-1 text-sm text-blue-100/85">
-                  Cada colegio opera aislado, con acceso seguro desde su propia cuenta institucional.
+              <div className="rounded-3xl border border-white/16 bg-white/12 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.16)] backdrop-blur-md">
+                <p className="text-base font-semibold text-white">Operación segura por colegio</p>
+                <p className="mt-2 text-sm leading-relaxed text-blue-100/88">
+                  Cada institución trabaja en un entorno aislado, protegido y listo para operar desde el primer día.
                 </p>
               </div>
             </div>
