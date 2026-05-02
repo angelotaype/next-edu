@@ -16,18 +16,16 @@ async function getSalonesData() {
         id,
         school_id,
         name,
-        grado,
-        seccion,
         cycle_id,
-        capacity,
+        tipo,
+        nivel,
         created_at,
         updated_at,
         deleted_at,
         created_by,
         cycles ( id, name )
       `)
-      .order('grado', { ascending: true })
-      .order('seccion', { ascending: true })
+      .order('name', { ascending: true })
       .order('created_at', { ascending: false }),
     db
       .from('cycles')
@@ -49,10 +47,9 @@ async function getSalonesData() {
     id: row.id,
     school_id: row.school_id,
     name: row.name,
-    grado: row.grado,
-    seccion: row.seccion,
     cycle_id: row.cycle_id,
-    capacity: row.capacity,
+    tipo: row.tipo,
+    nivel: row.nivel,
     created_at: row.created_at,
     updated_at: row.updated_at,
     deleted_at: row.deleted_at,
@@ -80,7 +77,7 @@ export default async function SalonesPage() {
               </p>
               <h1 className="text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">Salones</h1>
               <p className="mt-2 text-sm leading-relaxed text-gray-500 md:text-base">
-                Organiza salones por ciclo, grado y sección con una vista operativa clara para secretaría y dirección.
+                Organiza salones por ciclo, tipo y nivel con una vista operativa clara para secretaría y dirección.
               </p>
             </div>
 

@@ -7,10 +7,9 @@ export interface ClassroomRow {
   id: string
   school_id: string
   name: string
-  grado: number
-  seccion: string
   cycle_id: string
-  capacity: number | null
+  tipo: string | null
+  nivel: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null

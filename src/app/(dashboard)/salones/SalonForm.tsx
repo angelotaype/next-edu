@@ -11,10 +11,9 @@ import type { ClassroomRow, CycleOption } from './types'
 
 const salonSchema = z.object({
   name: z.string().trim().min(2, 'Ingresa al menos 2 caracteres.').max(100, 'Máximo 100 caracteres.'),
-  grado: z.number().int().min(1, 'El grado mínimo es 1.').max(6, 'El grado máximo es 6.'),
-  seccion: z.string().trim().min(1, 'La sección es obligatoria.').max(10, 'Máximo 10 caracteres.'),
   cycle_id: z.string().uuid('Selecciona un ciclo válido.'),
-  capacity: z.number().int().min(1, 'La capacidad debe ser mayor a 0.').max(500, 'La capacidad máxima es 500.').nullable(),
+  tipo: z.string().trim().min(2, 'Ingresa al menos 2 caracteres.').max(50, 'Máximo 50 caracteres.'),
+  nivel: z.string().trim().min(2, 'Ingresa al menos 2 caracteres.').max(50, 'Máximo 50 caracteres.'),
 })
 
 type SalonFormValues = z.infer<typeof salonSchema>
@@ -29,18 +28,14 @@ interface SalonFormProps {
 function toDefaultValues(classroom?: ClassroomRow): SalonFormValues {
   return {
     name: classroom?.name ?? '',
-    grado: classroom?.grado ?? 1,
-    seccion: classroom?.seccion ?? '',
     cycle_id: classroom?.cycle_id ?? '',
-    capacity: classroom?.capacity ?? null,
+    tipo: classroom?.tipo ?? '',
+    nivel: classroom?.nivel ?? '',
   }
 }
 
 function mapToActionInput(values: SalonFormValues): ClassroomInput {
-  return {
-    ...values,
-    capacity: values.capacity ?? null,
-  }
+  return values
 }
 
 export default function SalonForm({
@@ -117,7 +112,7 @@ export default function SalonForm({
                 {isEdit ? 'Editar salón' : 'Nuevo salón'}
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-sm text-gray-500">
-                Define ciclo, grado, sección y capacidad operativa del salón.
+                Define ciclo, tipo y nivel operativo del salón.
               </Dialog.Description>
             </div>
 
@@ -144,36 +139,6 @@ export default function SalonForm({
                 {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
               </div>
 
-              <div>
-                <label htmlFor="grado" className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Grado
-                </label>
-                <input
-                  id="grado"
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={6}
-                  className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                  {...register('grado', { valueAsNumber: true })}
-                />
-                {errors.grado && <p className="mt-1 text-xs text-red-600">{errors.grado.message}</p>}
-              </div>
-
-              <div>
-                <label htmlFor="seccion" className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Sección
-                </label>
-                <input
-                  id="seccion"
-                  type="text"
-                  placeholder="A"
-                  className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base uppercase text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                  {...register('seccion')}
-                />
-                {errors.seccion && <p className="mt-1 text-xs text-red-600">{errors.seccion.message}</p>}
-              </div>
-
               <div className="md:col-span-2">
                 <label htmlFor="cycle_id" className="mb-1.5 block text-sm font-medium text-gray-700">
                   Ciclo asociado
@@ -192,22 +157,31 @@ export default function SalonForm({
               </div>
 
               <div>
-                <label htmlFor="capacity" className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Capacidad
+                <label htmlFor="tipo" className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Tipo
                 </label>
                 <input
-                  id="capacity"
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={500}
-                  placeholder="Opcional"
+                  id="tipo"
+                  type="text"
+                  placeholder="Ej. Escolar"
                   className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                  {...register('capacity', {
-                    setValueAs: (value) => value === '' ? null : Number(value),
-                  })}
+                  {...register('tipo')}
                 />
-                {errors.capacity && <p className="mt-1 text-xs text-red-600">{errors.capacity.message}</p>}
+                {errors.tipo && <p className="mt-1 text-xs text-red-600">{errors.tipo.message}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="nivel" className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Nivel
+                </label>
+                <input
+                  id="nivel"
+                  type="text"
+                  placeholder="Ej. Primaria"
+                  className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  {...register('nivel')}
+                />
+                {errors.nivel && <p className="mt-1 text-xs text-red-600">{errors.nivel.message}</p>}
               </div>
             </div>
 

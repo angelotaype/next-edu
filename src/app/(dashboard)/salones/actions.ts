@@ -5,10 +5,9 @@ import { createClient } from '@/lib/supabase/server'
 
 export interface ClassroomInput {
   name: string
-  grado: number
-  seccion: string
   cycle_id: string
-  capacity: number | null
+  tipo: string
+  nivel: string
 }
 
 async function getCurrentContext() {
@@ -41,10 +40,9 @@ async function getCurrentContext() {
 function normalizeInput(input: ClassroomInput) {
   return {
     name: input.name.trim(),
-    grado: input.grado,
-    seccion: input.seccion.trim().toUpperCase(),
     cycle_id: input.cycle_id,
-    capacity: input.capacity ?? null,
+    tipo: input.tipo.trim(),
+    nivel: input.nivel.trim(),
   }
 }
 
