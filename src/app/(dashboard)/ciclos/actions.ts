@@ -2,14 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import type { CicloEstado } from './types'
 
 export interface CycleInput {
   name: string
-  ano: number
-  fecha_inicio: string | null
-  fecha_fin: string | null
-  estado: CicloEstado
+  start_date: string | null
+  end_date: string | null
 }
 
 async function getCurrentSchoolId() {
@@ -36,26 +33,25 @@ async function getCurrentSchoolId() {
     throw new Error('No se pudo resolver el colegio actual.')
   }
 
-  return { db, schoolId: profileData.school_id }
+  return { db, schoolId: profileData.school_id, userId: user.id }
 }
 
 function normalizeInput(input: CycleInput) {
   return {
     name: input.name.trim(),
-    ano: input.ano,
-    fecha_inicio: input.fecha_inicio || null,
-    fecha_fin: input.fecha_fin || null,
-    estado: input.estado,
+    start_date: input.start_date || null,
+    end_date: input.end_date || null,
   }
 }
 
 export async function createCycle(input: CycleInput) {
-  const { db, schoolId } = await getCurrentSchoolId()
+  const { db, schoolId, userId } = await getCurrentSchoolId()
   const payload = normalizeInput(input)
 
   const { error } = await db.from('cycles').insert({
     ...payload,
     school_id: schoolId,
+    created_by: userId,
   })
 
   if (error) {
@@ -94,7 +90,9 @@ export async function deleteCycle(id: string) {
 
   const { error } = await db
     .from('cycles')
-    .delete()
+    .update({
+      deleted_at: new Date().toISOString(),
+    })
     .eq('id', id)
 
   if (error) {

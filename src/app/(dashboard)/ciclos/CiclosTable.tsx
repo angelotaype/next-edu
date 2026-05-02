@@ -8,6 +8,22 @@ interface CiclosTableProps {
   cycles: CycleRow[]
 }
 
+function getEstado(cycle: CycleRow): CycleRow['deleted_at'] extends string | null ? 'activo' | 'inactivo' : never {
+  return cycle.deleted_at ? 'inactivo' : 'activo'
+}
+
+function getYearLabel(cycle: CycleRow) {
+  if (cycle.start_date) {
+    return new Date(`${cycle.start_date}T00:00:00`).getFullYear().toString()
+  }
+
+  if (cycle.end_date) {
+    return new Date(`${cycle.end_date}T00:00:00`).getFullYear().toString()
+  }
+
+  return '—'
+}
+
 function formatDate(date: string | null) {
   if (!date) return '—'
 
@@ -18,7 +34,7 @@ function formatDate(date: string | null) {
   })
 }
 
-function EstadoBadge({ estado }: { estado: CycleRow['estado'] }) {
+function EstadoBadge({ estado }: { estado: 'activo' | 'inactivo' }) {
   const className = estado === 'activo'
     ? 'border border-green-200 bg-green-50 text-green-700'
     : 'border border-gray-200 bg-gray-50 text-gray-600'
@@ -63,19 +79,19 @@ export default function CiclosTable({ cycles }: CiclosTableProps) {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-gray-900">{cycle.name}</p>
-                <p className="mt-1 text-xs text-gray-500">Año {cycle.ano}</p>
+                <p className="mt-1 text-xs text-gray-500">Año {getYearLabel(cycle)}</p>
               </div>
-              <EstadoBadge estado={cycle.estado} />
+              <EstadoBadge estado={getEstado(cycle)} />
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">Inicio</p>
-                <p className="mt-1 text-gray-700">{formatDate(cycle.fecha_inicio)}</p>
+                <p className="mt-1 text-gray-700">{formatDate(cycle.start_date)}</p>
               </div>
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">Fin</p>
-                <p className="mt-1 text-gray-700">{formatDate(cycle.fecha_fin)}</p>
+                <p className="mt-1 text-gray-700">{formatDate(cycle.end_date)}</p>
               </div>
             </div>
 
@@ -104,10 +120,10 @@ export default function CiclosTable({ cycles }: CiclosTableProps) {
             {cycles.map((cycle) => (
               <tr key={cycle.id} className="transition-colors hover:bg-gray-50/70">
                 <td className="px-5 py-4 font-semibold text-gray-900">{cycle.name}</td>
-                <td className="px-5 py-4 text-gray-700">{cycle.ano}</td>
-                <td className="px-5 py-4 text-gray-600">{formatDate(cycle.fecha_inicio)}</td>
-                <td className="px-5 py-4 text-gray-600">{formatDate(cycle.fecha_fin)}</td>
-                <td className="px-5 py-4"><EstadoBadge estado={cycle.estado} /></td>
+                <td className="px-5 py-4 text-gray-700">{getYearLabel(cycle)}</td>
+                <td className="px-5 py-4 text-gray-600">{formatDate(cycle.start_date)}</td>
+                <td className="px-5 py-4 text-gray-600">{formatDate(cycle.end_date)}</td>
+                <td className="px-5 py-4"><EstadoBadge estado={getEstado(cycle)} /></td>
                 <td className="px-5 py-4">
                   <div className="flex justify-end gap-2">
                     <CicloForm cycle={cycle} triggerLabel="Editar" triggerVariant="secondary" />

@@ -11,9 +11,8 @@ async function getCycles() {
 
   const { data, error } = await db
     .from('cycles')
-    .select('id, school_id, name, ano, fecha_inicio, fecha_fin, estado, created_at, updated_at')
-    .order('ano', { ascending: false })
-    .order('fecha_inicio', { ascending: false, nullsFirst: false })
+    .select('id, school_id, name, start_date, end_date, created_at, updated_at, deleted_at, created_by')
+    .order('start_date', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -25,7 +24,7 @@ async function getCycles() {
 
 export default async function CiclosPage() {
   const cycles = await getCycles()
-  const activeCount = cycles.filter((cycle) => cycle.estado === 'activo').length
+  const activeCount = cycles.filter((cycle) => !cycle.deleted_at).length
 
   return (
     <div className="mx-auto w-full max-w-6xl">

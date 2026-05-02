@@ -11,16 +11,14 @@ import type { CycleRow } from './types'
 
 const cicloSchema = z.object({
   name: z.string().trim().min(3, 'Ingresa al menos 3 caracteres.').max(100, 'Máximo 100 caracteres.'),
-  ano: z.number().int().min(2000, 'El año debe ser 2000 o mayor.').max(2100, 'El año debe ser 2100 o menor.'),
-  fecha_inicio: z.string().nullable(),
-  fecha_fin: z.string().nullable(),
-  estado: z.enum(['activo', 'inactivo']),
+  start_date: z.string().nullable(),
+  end_date: z.string().nullable(),
 }).refine((data) => {
-  if (!data.fecha_inicio || !data.fecha_fin) return true
-  return data.fecha_inicio <= data.fecha_fin
+  if (!data.start_date || !data.end_date) return true
+  return data.start_date <= data.end_date
 }, {
   message: 'La fecha fin debe ser posterior o igual a la fecha inicio.',
-  path: ['fecha_fin'],
+  path: ['end_date'],
 })
 
 type CicloFormValues = z.infer<typeof cicloSchema>
@@ -34,18 +32,16 @@ interface CicloFormProps {
 function toDefaultValues(cycle?: CycleRow): CicloFormValues {
   return {
     name: cycle?.name ?? '',
-    ano: cycle?.ano ?? new Date().getFullYear(),
-    fecha_inicio: cycle?.fecha_inicio ?? null,
-    fecha_fin: cycle?.fecha_fin ?? null,
-    estado: cycle?.estado ?? 'activo',
+    start_date: cycle?.start_date ?? null,
+    end_date: cycle?.end_date ?? null,
   }
 }
 
 function mapToActionInput(values: CicloFormValues): CycleInput {
   return {
     ...values,
-    fecha_inicio: values.fecha_inicio || null,
-    fecha_fin: values.fecha_fin || null,
+    start_date: values.start_date || null,
+    end_date: values.end_date || null,
   }
 }
 
@@ -122,7 +118,7 @@ export default function CicloForm({
                 {isEdit ? 'Editar ciclo' : 'Nuevo ciclo'}
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-sm text-gray-500">
-                Define el nombre, año académico y estado operativo del ciclo.
+                Define el nombre del ciclo y su rango de fechas.
               </Dialog.Description>
             </div>
 
@@ -150,64 +146,33 @@ export default function CicloForm({
               </div>
 
               <div>
-                <label htmlFor="ano" className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Año
-                </label>
-                <input
-                  id="ano"
-                  type="number"
-                  inputMode="numeric"
-                  min={2000}
-                  max={2100}
-                  className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                  {...register('ano', { valueAsNumber: true })}
-                />
-                {errors.ano && <p className="mt-1 text-xs text-red-600">{errors.ano.message}</p>}
-              </div>
-
-              <div>
-                <label htmlFor="estado" className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Estado
-                </label>
-                <select
-                  id="estado"
-                  className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                  {...register('estado')}
-                >
-                  <option value="activo">Activo</option>
-                  <option value="inactivo">Inactivo</option>
-                </select>
-                {errors.estado && <p className="mt-1 text-xs text-red-600">{errors.estado.message}</p>}
-              </div>
-
-              <div>
-                <label htmlFor="fecha_inicio" className="mb-1.5 block text-sm font-medium text-gray-700">
+                <label htmlFor="start_date" className="mb-1.5 block text-sm font-medium text-gray-700">
                   Fecha de inicio
                 </label>
                 <input
-                  id="fecha_inicio"
+                  id="start_date"
                   type="date"
                   className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                  {...register('fecha_inicio', {
+                  {...register('start_date', {
                     setValueAs: (value) => value || null,
                   })}
                 />
-                {errors.fecha_inicio && <p className="mt-1 text-xs text-red-600">{errors.fecha_inicio.message}</p>}
+                {errors.start_date && <p className="mt-1 text-xs text-red-600">{errors.start_date.message}</p>}
               </div>
 
               <div>
-                <label htmlFor="fecha_fin" className="mb-1.5 block text-sm font-medium text-gray-700">
+                <label htmlFor="end_date" className="mb-1.5 block text-sm font-medium text-gray-700">
                   Fecha de fin
                 </label>
                 <input
-                  id="fecha_fin"
+                  id="end_date"
                   type="date"
                   className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                  {...register('fecha_fin', {
+                  {...register('end_date', {
                     setValueAs: (value) => value || null,
                   })}
                 />
-                {errors.fecha_fin && <p className="mt-1 text-xs text-red-600">{errors.fecha_fin.message}</p>}
+                {errors.end_date && <p className="mt-1 text-xs text-red-600">{errors.end_date.message}</p>}
               </div>
             </div>
 
