@@ -7,7 +7,7 @@ export interface ClassroomInput {
   name: string
   cycle_id: string
   tipo: string
-  nivel: string
+  nivel: string | null
 }
 
 async function getCurrentContext() {
@@ -42,7 +42,7 @@ function normalizeInput(input: ClassroomInput) {
     name: input.name.trim(),
     cycle_id: input.cycle_id,
     tipo: input.tipo.trim(),
-    nivel: input.nivel.trim(),
+    nivel: input.nivel?.trim() || null,
   }
 }
 

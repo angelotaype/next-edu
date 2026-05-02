@@ -9,11 +9,16 @@ import { z } from 'zod'
 import { createClassroom, updateClassroom, type ClassroomInput } from './actions'
 import type { ClassroomRow, CycleOption } from './types'
 
+const TIPO_OPTIONS = [
+  { value: 'escolar', label: 'Escolar' },
+  { value: 'preuniversitario', label: 'Preuniversitario' },
+] as const
+
 const salonSchema = z.object({
   name: z.string().trim().min(2, 'Ingresa al menos 2 caracteres.').max(100, 'Máximo 100 caracteres.'),
   cycle_id: z.string().uuid('Selecciona un ciclo válido.'),
-  tipo: z.string().trim().min(2, 'Ingresa al menos 2 caracteres.').max(50, 'Máximo 50 caracteres.'),
-  nivel: z.string().trim().min(2, 'Ingresa al menos 2 caracteres.').max(50, 'Máximo 50 caracteres.'),
+  tipo: z.enum(['escolar', 'preuniversitario']),
+  nivel: z.string().trim().max(50, 'Máximo 50 caracteres.').nullable(),
 })
 
 type SalonFormValues = z.infer<typeof salonSchema>
@@ -29,13 +34,16 @@ function toDefaultValues(classroom?: ClassroomRow): SalonFormValues {
   return {
     name: classroom?.name ?? '',
     cycle_id: classroom?.cycle_id ?? '',
-    tipo: classroom?.tipo ?? '',
-    nivel: classroom?.nivel ?? '',
+    tipo: (classroom?.tipo as SalonFormValues['tipo'] | undefined) ?? 'escolar',
+    nivel: classroom?.nivel ?? null,
   }
 }
 
 function mapToActionInput(values: SalonFormValues): ClassroomInput {
-  return values
+  return {
+    ...values,
+    nivel: values.nivel || null,
+  }
 }
 
 export default function SalonForm({
@@ -160,13 +168,17 @@ export default function SalonForm({
                 <label htmlFor="tipo" className="mb-1.5 block text-sm font-medium text-gray-700">
                   Tipo
                 </label>
-                <input
+                <select
                   id="tipo"
-                  type="text"
-                  placeholder="Ej. Escolar"
                   className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                   {...register('tipo')}
-                />
+                >
+                  {TIPO_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
                 {errors.tipo && <p className="mt-1 text-xs text-red-600">{errors.tipo.message}</p>}
               </div>
 
@@ -177,9 +189,11 @@ export default function SalonForm({
                 <input
                   id="nivel"
                   type="text"
-                  placeholder="Ej. Primaria"
+                  placeholder="Opcional"
                   className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                  {...register('nivel')}
+                  {...register('nivel', {
+                    setValueAs: (value) => value?.trim() ? value.trim() : null,
+                  })}
                 />
                 {errors.nivel && <p className="mt-1 text-xs text-red-600">{errors.nivel.message}</p>}
               </div>
