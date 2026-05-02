@@ -22,16 +22,16 @@ function formatDate(iso: string) {
 }
 
 const STATUS_MAP: Record<string, { label: string; className: string }> = {
-  completed: { label: 'Pagado', className: 'bg-green-100 text-green-700' },
-  pending: { label: 'Pendiente', className: 'bg-yellow-100 text-yellow-700' },
-  partial: { label: 'Parcial', className: 'bg-blue-100 text-blue-700' },
-  overdue: { label: 'Vencido', className: 'bg-red-100 text-red-700' },
+  completed: { label: 'Pagado', className: 'border border-green-200 bg-green-50 text-green-700' },
+  pending: { label: 'Pendiente', className: 'border border-yellow-200 bg-yellow-50 text-yellow-700' },
+  partial: { label: 'Parcial', className: 'border border-sky-200 bg-sky-50 text-sky-700' },
+  overdue: { label: 'Vencido', className: 'border border-red-200 bg-red-50 text-red-700' },
 }
 
 function StatusBadge({ status }: { status: string }) {
   const s = STATUS_MAP[status] ?? { label: status, className: 'bg-gray-100 text-gray-600' }
   return (
-    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${s.className}`}>
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${s.className}`}>
       {s.label}
     </span>
   )
@@ -42,23 +42,36 @@ function StatusBadge({ status }: { status: string }) {
 function DashboardSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="h-3 w-24 bg-gray-200 rounded mb-3" />
-            <div className="h-8 w-28 bg-gray-200 rounded mb-1" />
-            <div className="h-3 w-16 bg-gray-100 rounded" />
+          <div key={i} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
+            <div className="mb-4 h-10 w-10 rounded-2xl bg-gray-100" />
+            <div className="mb-3 h-3 w-24 rounded bg-gray-200" />
+            <div className="mb-2 h-8 w-28 rounded bg-gray-200" />
+            <div className="h-3 w-16 rounded bg-gray-100" />
           </div>
         ))}
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <div className="h-4 w-40 bg-gray-200 rounded mb-4" />
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 h-9 w-9 rounded-xl bg-gray-100" />
+            <div className="mb-2 h-4 w-24 rounded bg-gray-200" />
+            <div className="h-3 w-32 rounded bg-gray-100" />
+          </div>
+        ))}
+      </div>
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
+        <div className="mb-4 h-4 w-40 rounded bg-gray-200" />
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex gap-4 py-3 border-t border-gray-100">
-            <div className="h-4 flex-1 bg-gray-100 rounded" />
-            <div className="h-4 w-20 bg-gray-100 rounded" />
-            <div className="h-4 w-24 bg-gray-100 rounded" />
-            <div className="h-4 w-16 bg-gray-100 rounded" />
+          <div key={i} className="flex gap-4 border-t border-gray-100 py-3 first:border-t-0">
+            <div className="h-11 w-11 rounded-xl bg-gray-100" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 w-32 rounded bg-gray-100" />
+              <div className="h-3 w-20 rounded bg-gray-100" />
+            </div>
+            <div className="hidden w-24 rounded bg-gray-100 md:block" />
+            <div className="h-6 w-16 rounded-full bg-gray-100" />
           </div>
         ))}
       </div>
@@ -117,15 +130,55 @@ async function DashboardData() {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   })
 
+  const quickActions = [
+    {
+      href: '/scan',
+      label: 'Escanear QR',
+      description: 'Registrar asistencia o validar estado de deuda.',
+      icon: (
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.24M16.243 7.757l1.414-1.414M7.757 16.243l-1.414 1.414M4 12H2m5.757-4.243L6.343 6.343" />
+        </svg>
+      ),
+      chipClassName: 'bg-blue-50 text-blue-700',
+    },
+    {
+      href: '/students/nuevo',
+      label: 'Nueva matrícula',
+      description: 'Crear el registro del alumno y su plan de pago.',
+      icon: (
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        </svg>
+      ),
+      chipClassName: 'bg-green-50 text-green-700',
+    },
+    {
+      href: '/morosos',
+      label: 'Ver morosos',
+      description: 'Revisar deuda vencida y priorizar seguimiento.',
+      icon: (
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      ),
+      chipClassName: 'bg-red-50 text-red-700',
+    },
+  ]
+
   const kpis = [
     {
       label: 'Alumnos matriculados',
       value: studentCount.toString(),
-      sub: 'ciclo activo',
-      colorBorder: 'border-l-blue-500',
-      colorValue: 'text-blue-700',
+      sub: 'Total del ciclo activo',
+      accent: 'from-blue-600/15 to-blue-600/5',
+      valueClassName: 'text-blue-700',
+      iconWrapClassName: 'bg-blue-50 text-blue-700',
       icon: (
-        <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
@@ -134,11 +187,12 @@ async function DashboardData() {
     {
       label: 'Ingresos (30 días)',
       value: formatSoles(monthlyIncome),
-      sub: 'pagos completados',
-      colorBorder: 'border-l-green-500',
-      colorValue: 'text-green-700',
+      sub: 'Pagos completados recientes',
+      accent: 'from-green-600/15 to-green-600/5',
+      valueClassName: 'text-green-700',
+      iconWrapClassName: 'bg-green-50 text-green-700',
       icon: (
-        <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
@@ -147,11 +201,12 @@ async function DashboardData() {
     {
       label: 'Deuda total',
       value: formatSoles(totalDebt),
-      sub: 'pendiente de cobro',
-      colorBorder: 'border-l-red-500',
-      colorValue: 'text-red-700',
+      sub: 'Pendiente de cobro',
+      accent: 'from-red-600/15 to-red-600/5',
+      valueClassName: 'text-red-700',
+      iconWrapClassName: 'bg-red-50 text-red-700',
       icon: (
-        <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
@@ -160,11 +215,12 @@ async function DashboardData() {
     {
       label: 'Asistencia hoy',
       value: todayAttendance.toString(),
-      sub: 'scans QR hoy',
-      colorBorder: 'border-l-yellow-500',
-      colorValue: 'text-yellow-700',
+      sub: 'Scans QR del día',
+      accent: 'from-yellow-500/20 to-yellow-500/5',
+      valueClassName: 'text-yellow-700',
+      iconWrapClassName: 'bg-yellow-50 text-yellow-700',
       icon: (
-        <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
         </svg>
@@ -174,92 +230,142 @@ async function DashboardData() {
 
   return (
     <>
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-900">Panel de Control</h1>
-        <p className="text-sm text-gray-500 capitalize">{dateLabel}</p>
-      </div>
-
-      {/* Quick actions */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <Link href="/scan"
-          className="flex flex-col items-center gap-2 bg-[#2563EB] hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl px-4 py-4 transition-colors shadow-sm">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.24M16.243 7.757l1.414-1.414M7.757 16.243l-1.414 1.414M4 12H2m5.757-4.243L6.343 6.343" />
-          </svg>
-          <span className="text-sm font-semibold text-center leading-tight">QR Scanner</span>
-        </Link>
-        <Link href="/students/nuevo"
-          className="flex flex-col items-center gap-2 bg-[#16A34A] hover:bg-green-700 active:bg-green-800 text-white rounded-xl px-4 py-4 transition-colors shadow-sm">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-          </svg>
-          <span className="text-sm font-semibold text-center leading-tight">Nueva matrícula</span>
-        </Link>
-        <Link href="/morosos"
-          className="flex flex-col items-center gap-2 bg-[#DC2626] hover:bg-red-700 active:bg-red-800 text-white rounded-xl px-4 py-4 transition-colors shadow-sm">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <span className="text-sm font-semibold text-center leading-tight">Ver morosos</span>
-        </Link>
-      </div>
-
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {kpis.map((kpi) => (
-          <div key={kpi.label}
-            className={`bg-white rounded-xl border border-gray-200 border-l-4 ${kpi.colorBorder} p-5 shadow-sm`}>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide leading-tight">{kpi.label}</p>
-              {kpi.icon}
+      <div className="mb-6 overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
+        <div className="bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.12),transparent_42%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-5 py-5 md:px-7 md:py-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
+                Resumen operativo
+              </p>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">Panel de Control</h1>
+              <p className="mt-2 text-sm leading-relaxed text-gray-500 md:text-base">
+                Supervisa matrícula, cobranza y asistencia desde una vista rápida para operación diaria.
+              </p>
             </div>
-            <p className={`text-2xl font-bold ${kpi.colorValue} leading-none mb-1`}>{kpi.value}</p>
-            <p className="text-xs text-gray-400">{kpi.sub}</p>
+
+            <div className="rounded-2xl border border-gray-200 bg-white/85 px-4 py-3 shadow-sm backdrop-blur">
+              <p className="text-xs font-medium uppercase tracking-[0.16em] text-gray-400">Fecha</p>
+              <p className="mt-1 text-sm font-semibold capitalize text-gray-700">{dateLabel}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-6 grid gap-3 sm:grid-cols-3">
+        {quickActions.map((action) => (
+          <Link
+            key={action.href}
+            href={action.href}
+            className="group rounded-2xl border border-gray-200 bg-white px-4 py-4 shadow-sm transition-all duration-150 hover:border-gray-300 hover:shadow-md active:scale-[0.98]"
+          >
+            <div className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${action.chipClassName}`}>
+              {action.icon}
+            </div>
+            <p className="text-sm font-semibold text-gray-900">{action.label}</p>
+            <p className="mt-1 text-sm leading-relaxed text-gray-500">{action.description}</p>
+          </Link>
+        ))}
+      </div>
+
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+        {kpis.map((kpi) => (
+          <div
+            key={kpi.label}
+            className={`overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br ${kpi.accent} p-4 shadow-sm md:p-5`}
+          >
+            <div className="mb-6 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">{kpi.label}</p>
+                <p className={`mt-3 text-2xl font-bold tracking-tight md:text-[1.9rem] ${kpi.valueClassName}`}>{kpi.value}</p>
+              </div>
+
+              <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${kpi.iconWrapClassName}`}>
+                {kpi.icon}
+              </div>
+            </div>
+
+            <p className="text-xs font-medium text-gray-500 md:text-sm">{kpi.sub}</p>
           </div>
         ))}
       </div>
 
-      {/* Recent transactions */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-800 text-sm">Últimas transacciones</h2>
-          <Link href="/students" className="text-xs text-blue-600 hover:underline">Ver todos →</Link>
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-5">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900 md:text-base">Últimas transacciones</h2>
+            <p className="mt-1 text-sm text-gray-500">Pagos registrados recientemente en ventanilla.</p>
+          </div>
+          <Link
+            href="/students"
+            className="inline-flex min-h-11 items-center text-sm font-medium text-blue-600 transition hover:text-blue-700"
+          >
+            Ver todos
+          </Link>
         </div>
 
         {recentPayments.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-10">Sin pagos registrados aún.</p>
+          <div className="px-4 py-12 text-center md:px-5">
+            <p className="text-sm text-gray-400">Sin pagos registrados aún.</p>
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Alumno</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Monto</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide hidden sm:table-cell">Fecha</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {recentPayments.map((p) => {
-                  const student = p.students as { nombres?: string; apellidos?: string } | null
-                  const name = student
-                    ? `${student.apellidos ?? ''}, ${student.nombres ?? ''}`.trim().replace(/^,\s*/, '')
-                    : '—'
-                  return (
-                    <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-5 py-3 font-medium text-gray-800 max-w-[160px] truncate">{name}</td>
-                      <td className="px-5 py-3 text-gray-700 font-mono text-xs">{formatSoles(Number(p.amount))}</td>
-                      <td className="px-5 py-3 text-gray-500 hidden sm:table-cell text-xs">{formatDate(p.created_at)}</td>
-                      <td className="px-5 py-3"><StatusBadge status={p.status} /></td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+          <div>
+            <div className="space-y-3 p-4 md:hidden">
+              {recentPayments.map((p) => {
+                const student = p.students as { nombres?: string; apellidos?: string } | null
+                const name = student
+                  ? `${student.apellidos ?? ''}, ${student.nombres ?? ''}`.trim().replace(/^,\s*/, '')
+                  : '—'
+
+                return (
+                  <article key={p.id} className="rounded-2xl border border-gray-200 bg-gray-50/60 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-gray-900">{name}</p>
+                        <p className="mt-1 text-xs text-gray-500">{formatDate(p.created_at)}</p>
+                      </div>
+                      <StatusBadge status={p.status} />
+                    </div>
+
+                    <div className="mt-4 flex items-end justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">Monto</p>
+                        <p className="mt-1 text-sm font-semibold text-gray-700">{formatSoles(Number(p.amount))}</p>
+                      </div>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50/80">
+                    <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Alumno</th>
+                    <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Monto</th>
+                    <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Fecha</th>
+                    <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Estado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {recentPayments.map((p) => {
+                    const student = p.students as { nombres?: string; apellidos?: string } | null
+                    const name = student
+                      ? `${student.apellidos ?? ''}, ${student.nombres ?? ''}`.trim().replace(/^,\s*/, '')
+                      : '—'
+
+                    return (
+                      <tr key={p.id} className="transition-colors hover:bg-gray-50/70">
+                        <td className="max-w-[220px] px-5 py-4 font-semibold text-gray-800">{name}</td>
+                        <td className="px-5 py-4 text-sm font-semibold text-gray-700">{formatSoles(Number(p.amount))}</td>
+                        <td className="px-5 py-4 text-sm text-gray-500">{formatDate(p.created_at)}</td>
+                        <td className="px-5 py-4"><StatusBadge status={p.status} /></td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
