@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
-import QRScanner from '@/components/QRScanner'
 import { createClient } from '@/lib/supabase/server'
+import ScannerCard from './ScannerCard'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,5 +15,5 @@ export default async function ScanPage() {
     redirect('/login')
   }
 
-  return <QRScanner />
+  return <ScannerCard />
 }
