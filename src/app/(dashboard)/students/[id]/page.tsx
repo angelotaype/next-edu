@@ -24,7 +24,7 @@ async function getStudentData(studentId: string): Promise<{
 
   if (!user) redirect('/login')
 
-  const [studentRes, installmentsRes, attendanceRes] = await Promise.all([
+  const [studentRes, enrollmentsRes] = await Promise.all([
     db
       .from('students')
       .select(`
@@ -34,21 +34,36 @@ async function getStudentData(studentId: string): Promise<{
       .eq('id', studentId)
       .single(),
     db
-      .from('installments')
-      .select('*')
-      .eq('student_id', studentId)
-      .order('due_date', { ascending: true }),
-    db
-      .from('attendance_logs')
-      .select('*')
-      .eq('student_id', studentId)
-      .order('created_at', { ascending: false }),
+      .from('enrollments')
+      .select('id')
+      .eq('student_id', studentId),
   ])
 
   if (studentRes.error) {
     if (studentRes.error.code === 'PGRST116') notFound()
     throw new Error(studentRes.error.message)
   }
+
+  if (enrollmentsRes.error) throw new Error(enrollmentsRes.error.message)
+
+  const enrollmentIds = ((enrollmentsRes.data ?? []) as Array<{ id?: string | null }>)
+    .map((row) => row.id)
+    .filter((value): value is string => Boolean(value))
+
+  const [installmentsRes, attendanceRes] = enrollmentIds.length === 0
+    ? [{ data: [], error: null }, { data: [], error: null }]
+    : await Promise.all([
+        db
+          .from('installments')
+          .select('*')
+          .in('enrollment_id', enrollmentIds)
+          .order('due_date', { ascending: true }),
+        db
+          .from('attendance_logs')
+          .select('*')
+          .in('enrollment_id', enrollmentIds)
+          .order('created_at', { ascending: false }),
+      ])
 
   if (installmentsRes.error) throw new Error(installmentsRes.error.message)
   if (attendanceRes.error) throw new Error(attendanceRes.error.message)
