@@ -37,6 +37,25 @@ function buildReceiptNumber() {
   return `MT-${stamp}-${random}`
 }
 
+function getFirstDueDate() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getDate() <= 20 ? now.getMonth() : now.getMonth() + 1
+  return new Date(year, month, 20).toISOString().slice(0, 10)
+}
+
+function getFrequencyInterval(frequency: CreateStudentWithPaymentInput['payment_frequency']) {
+  switch (frequency) {
+    case 'quarterly':
+      return "interval '3 month'"
+    case 'yearly':
+      return "interval '1 year'"
+    case 'monthly':
+    default:
+      return "interval '1 month'"
+  }
+}
+
 export async function createStudentWithPayment(input: CreateStudentWithPaymentInput) {
   const supabase = createClient()
   const db = supabase as any
@@ -61,46 +80,6 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
     throw new Error('No se pudo resolver el colegio actual.')
   }
 
-  const planName = `${input.selectedPlan.installments} cuotas de S/ ${input.selectedPlan.monthlyAmount.toFixed(2)}`
-
-  const planPayloadBase = {
-    school_id: schoolId,
-    name: planName,
-    monthly_fee: input.selectedPlan.monthlyAmount,
-    total_fee: input.selectedPlan.totalAmount,
-    num_installments: input.selectedPlan.installments,
-    frequency: input.payment_frequency,
-    created_by: user.id,
-  }
-
-  let planInsert = await db
-    .from('payment_plans')
-    .insert(planPayloadBase)
-    .select('id')
-    .single()
-
-  if (planInsert.error) {
-    const fallbackPayload = {
-      school_id: schoolId,
-      name: planName,
-      total_amount: input.selectedPlan.totalAmount,
-      installments: input.selectedPlan.installments,
-      created_by: user.id,
-    }
-
-    planInsert = await db
-      .from('payment_plans')
-      .insert(fallbackPayload)
-      .select('id')
-      .single()
-  }
-
-  if (planInsert.error || !planInsert.data?.id) {
-    throw new Error(planInsert.error?.message ?? 'No se pudo crear el plan de pago.')
-  }
-
-  const paymentPlanId = planInsert.data.id as string
-
   const payload = {
     school_id: schoolId,
     name: input.name.trim(),
@@ -109,7 +88,6 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
     dni: input.dni?.trim() || null,
     cycle_id: input.cycle_id,
     classroom_id: input.classroom_id,
-    payment_plan_id: paymentPlanId,
     payment_frequency: input.payment_frequency,
   }
 
@@ -146,6 +124,37 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
 
   if (!enrollmentId) {
     throw new Error('No se pudo resolver la matrícula creada.')
+  }
+
+  const planName = `${input.selectedPlan.installments} cuotas de S/ ${input.selectedPlan.monthlyAmount.toFixed(2)}`
+  const { data: paymentPlan, error: paymentPlanError } = await db
+    .from('payment_plans')
+    .insert({
+      school_id: schoolId,
+      student_id: studentId,
+      cycle_id: input.cycle_id,
+      name: planName,
+      total_amount: input.selectedPlan.totalAmount,
+      status: 'activo',
+    })
+    .select('id')
+    .single()
+
+  if (paymentPlanError || !paymentPlan?.id) {
+    throw new Error(paymentPlanError?.message ?? 'No se pudo crear el plan de pago.')
+  }
+
+  const paymentPlanId = paymentPlan.id as string
+
+  const { error: generateError } = await db.rpc('fn_generate_installments', {
+    p_payment_plan_id: paymentPlanId,
+    p_num_installments: input.selectedPlan.installments,
+    p_first_due_date: getFirstDueDate(),
+    p_frequency: getFrequencyInterval(input.payment_frequency),
+  })
+
+  if (generateError) {
+    throw new Error(generateError.message)
   }
 
   const receiptNumber = buildReceiptNumber()
