@@ -33,7 +33,7 @@ async function getMorososRows(): Promise<MorosoRow[]> {
       `),
     db
       .from('installments')
-      .select('id, enrollment_id, amount, due_date, status')
+      .select('id, enrollment_id, amount_due, due_date, status')
       .neq('status', 'paid')
       .order('due_date', { ascending: true }),
   ])
@@ -103,7 +103,7 @@ async function getMorososRows(): Promise<MorosoRow[]> {
 
     if (!studentId) continue
 
-    const amount = typeof installment.amount === 'number' ? installment.amount : Number(installment.amount) || 0
+    const amount = typeof installment.amount_due === 'number' ? installment.amount_due : Number(installment.amount_due) || 0
     const dueDate = (installment.due_date as string | null) ?? null
 
     const existing = grouped.get(studentId)
