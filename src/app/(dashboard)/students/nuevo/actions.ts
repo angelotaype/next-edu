@@ -56,6 +56,23 @@ function getFrequencyInterval(frequency: CreateStudentWithPaymentInput['payment_
   }
 }
 
+function splitStudentName(fullName: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean)
+
+  if (parts.length === 0) {
+    return { nombres: 'Alumno', apellidos: 'Sin apellido' }
+  }
+
+  if (parts.length === 1) {
+    return { nombres: parts[0], apellidos: 'Sin apellido' }
+  }
+
+  return {
+    nombres: parts.slice(0, -1).join(' '),
+    apellidos: parts.at(-1) ?? 'Sin apellido',
+  }
+}
+
 export async function createStudentWithPayment(input: CreateStudentWithPaymentInput) {
   const supabase = createClient()
   const db = supabase as any
@@ -79,51 +96,70 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
   if (profileError || !schoolId) {
     throw new Error('No se pudo resolver el colegio actual.')
   }
+  const { nombres, apellidos } = splitStudentName(input.name)
 
-  const payload = {
+  const studentPayload = {
     school_id: schoolId,
-    name: input.name.trim(),
+    nombres,
+    apellidos,
+    dni: input.dni?.trim() || null,
     email: input.email?.trim() || null,
     phone: input.phone?.trim() || null,
-    dni: input.dni?.trim() || null,
+    classroom_id: input.classroom_id,
+    estado_matricula: 'activo',
+  }
+
+  let studentInsert = await db
+    .from('students')
+    .insert(studentPayload)
+    .select('id')
+    .single()
+
+  if (studentInsert.error && String(studentInsert.error.message).toLowerCase().includes('email')) {
+    const { email, phone, ...fallbackPayload } = studentPayload
+    void email
+    void phone
+    studentInsert = await db
+      .from('students')
+      .insert(fallbackPayload)
+      .select('id')
+      .single()
+  }
+
+  if (studentInsert.error || !studentInsert.data?.id) {
+    throw new Error(studentInsert.error?.message ?? 'No se pudo crear el estudiante.')
+  }
+
+  const studentId = studentInsert.data.id as string
+
+  const enrollmentPayload = {
+    school_id: schoolId,
+    student_id: studentId,
     cycle_id: input.cycle_id,
     classroom_id: input.classroom_id,
-    payment_frequency: input.payment_frequency,
+    created_by: user.id,
   }
 
-  const { data, error } = await db.rpc('fn_create_student_with_plan', payload)
+  let enrollmentInsert = await db
+    .from('enrollments')
+    .insert(enrollmentPayload)
+    .select('id')
+    .single()
 
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  const result = Array.isArray(data) ? data[0] : data
-
-  if (!result?.student_id) {
-    throw new Error('La RPC no devolvió el estudiante creado.')
-  }
-
-  const studentId = result.student_id as string
-  let enrollmentId = (result.first_enrollment_id as string | null) ?? null
-
-  if (!enrollmentId) {
-    const { data: enrollment, error: enrollmentError } = await db
+  if (enrollmentInsert.error && String(enrollmentInsert.error.message).toLowerCase().includes('created_by')) {
+    const { created_by, ...fallbackPayload } = enrollmentPayload
+    void created_by
+    enrollmentInsert = await db
       .from('enrollments')
+      .insert(fallbackPayload)
       .select('id')
-      .eq('student_id', studentId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    if (enrollmentError) {
-      throw new Error(enrollmentError.message)
-    }
-
-    enrollmentId = (enrollment as { id?: string } | null)?.id ?? null
+      .single()
   }
 
-  if (!enrollmentId) {
-    throw new Error('No se pudo resolver la matrícula creada.')
+  const enrollmentId = (enrollmentInsert.data?.id as string | undefined) ?? null
+
+  if (enrollmentInsert.error || !enrollmentId) {
+    throw new Error(enrollmentInsert.error?.message ?? 'No se pudo crear la matrícula.')
   }
 
   const planName = `${input.selectedPlan.installments} cuotas de S/ ${input.selectedPlan.monthlyAmount.toFixed(2)}`
