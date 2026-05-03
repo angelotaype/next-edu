@@ -104,6 +104,7 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
   if (profileError || !schoolId) {
     throw new Error('No se pudo resolver el colegio actual.')
   }
+  console.log('🟢 [1] schoolId:', schoolId)
   const { nombres, apellidos } = splitStudentName(input.name)
   const studentCode = buildStudentCode(schoolId, input.dni || 'UNKNOWN')
 
@@ -142,6 +143,7 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
   }
 
   const studentId = studentInsert.data.id as string
+  console.log('🟢 [2] Student created:', studentId)
 
   const enrollmentPayload = {
     school_id: schoolId,
@@ -172,8 +174,10 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
   if (enrollmentInsert.error || !enrollmentId) {
     throw new Error(enrollmentInsert.error?.message ?? 'No se pudo crear la matrícula.')
   }
+  console.log('🟢 [3] Enrollment created:', enrollmentId)
 
   const planName = `${input.selectedPlan.installments} cuotas de S/ ${input.selectedPlan.monthlyAmount.toFixed(2)}`
+  console.log('🟢 [4] Payment plan input:', input.selectedPlan)
   const { data: paymentPlan, error: paymentPlanError } = await db
     .from('payment_plans')
     .insert({
@@ -186,25 +190,34 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
     })
     .select('id')
     .single()
+  console.log('🟢 [5] Payment plan result:', { paymentPlan, paymentPlanError })
 
-  if (paymentPlanError || !paymentPlan?.id) {
-    throw new Error(paymentPlanError?.message ?? 'No se pudo crear el plan de pago.')
+  if (paymentPlanError) {
+    throw new Error(`PaymentPlan: ${paymentPlanError.message}`)
+  }
+
+  if (!paymentPlan?.id) {
+    throw new Error('PaymentPlan: No se pudo crear el plan de pago.')
   }
 
   const paymentPlanId = paymentPlan.id as string
-
-  const { error: generateError } = await db.rpc('fn_generate_installments', {
+  const generatePayload = {
     p_payment_plan_id: paymentPlanId,
     p_num_installments: input.selectedPlan.installments,
     p_first_due_date: getFirstDueDate(),
     p_frequency: getFrequencyInterval(input.payment_frequency),
-  })
+  }
+  console.log('🟢 [6] Calling fn_generate_installments with:', generatePayload)
 
-  if (generateError) {
-    throw new Error(generateError.message)
+  const generateRes = await db.rpc('fn_generate_installments', generatePayload)
+  console.log('🟢 [7] Generate installments result:', generateRes)
+
+  if (generateRes.error) {
+    throw new Error(`Installments: ${generateRes.error.message}`)
   }
 
   const receiptNumber = buildReceiptNumber()
+  console.log('🟢 [8] Primer pago input:', input.primerPago)
   const paymentPayload = {
     school_id: schoolId,
     payment_plan_id: paymentPlanId,
@@ -233,17 +246,23 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
       .select('id')
       .single()
   }
+  console.log('🟢 [9] Payment insert result:', paymentInsert)
 
-  if (paymentInsert.error || !paymentInsert.data?.id) {
-    throw new Error(paymentInsert.error?.message ?? 'No se pudo registrar el primer pago.')
+  if (paymentInsert.error) {
+    throw new Error(`Payment: ${paymentInsert.error.message}`)
   }
 
-  const { error: applyError } = await db.rpc('fn_apply_payment_to_oldest_installments', {
+  if (!paymentInsert.data?.id) {
+    throw new Error('Payment: No se pudo registrar el primer pago.')
+  }
+
+  const applyRes = await db.rpc('fn_apply_payment_to_oldest_installments', {
     p_payment_id: paymentInsert.data.id,
   })
+  console.log('🟢 [10] Apply payment FIFO result:', applyRes)
 
-  if (applyError) {
-    throw new Error(applyError.message)
+  if (applyRes.error) {
+    throw new Error(`Apply: ${applyRes.error.message}`)
   }
 
   return {
