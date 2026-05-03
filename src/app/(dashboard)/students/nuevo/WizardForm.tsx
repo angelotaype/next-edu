@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { createStudentWithPlan } from './actions'
+import { createStudentWithPayment } from './actions'
 
 const STORAGE_KEY = 'next-edu:student-wizard'
 
@@ -19,6 +19,11 @@ const wizardSchema = z.object({
   classroom_id: z.string().uuid('Selecciona un salón válido.'),
   payment_plan_id: z.string().uuid('Selecciona un plan de pago válido.'),
   payment_frequency: z.enum(['monthly', 'quarterly', 'yearly']),
+  primerPago: z.object({
+    monto: z.number().min(0.01, 'Ingresa un monto mayor a 0.'),
+    metodo: z.enum(['efectivo', 'yape', 'plin', 'transferencia']),
+    referencia: z.string().max(50, 'Máximo 50 caracteres.').optional(),
+  }),
 })
 
 type WizardValues = z.infer<typeof wizardSchema>
@@ -54,7 +59,18 @@ const STEPS = [
   { number: 2, label: 'Ciclo', fields: ['cycle_id'] as const },
   { number: 3, label: 'Salón', fields: ['classroom_id'] as const },
   { number: 4, label: 'Plan', fields: ['payment_plan_id', 'payment_frequency'] as const },
+  { number: 5, label: 'Pago', fields: ['primerPago.monto', 'primerPago.metodo', 'primerPago.referencia'] as const },
 ] as const
+
+function formatCurrency(value: number | null) {
+  if (value == null) return '—'
+
+  return new Intl.NumberFormat('es-PE', {
+    style: 'currency',
+    currency: 'PEN',
+    minimumFractionDigits: 2,
+  }).format(value)
+}
 
 function Stepper({ currentStep }: { currentStep: number }) {
   return (
@@ -113,11 +129,17 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
       classroom_id: '',
       payment_plan_id: '',
       payment_frequency: 'monthly',
+      primerPago: {
+        monto: 0,
+        metodo: 'efectivo',
+        referencia: '',
+      },
     },
   })
 
   const selectedCycleId = watch('cycle_id')
   const selectedPlanId = watch('payment_plan_id')
+  const primerPagoMonto = watch('primerPago.monto')
 
   const availableClassrooms = useMemo(
     () => classrooms.filter((classroom) => classroom.cycle_id === selectedCycleId),
@@ -127,6 +149,14 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
   const selectedPlan = useMemo(
     () => paymentPlans.find((plan) => plan.id === selectedPlanId) ?? null,
     [paymentPlans, selectedPlanId]
+  )
+  const selectedCycle = useMemo(
+    () => cycles.find((cycle) => cycle.id === selectedCycleId) ?? null,
+    [cycles, selectedCycleId]
+  )
+  const selectedClassroom = useMemo(
+    () => classrooms.find((classroom) => classroom.id === watch('classroom_id')) ?? null,
+    [classrooms, watch]
   )
 
   useEffect(() => {
@@ -143,7 +173,7 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
         })
       }
 
-      if (parsed.step && parsed.step >= 1 && parsed.step <= 4) {
+      if (parsed.step && parsed.step >= 1 && parsed.step <= 5) {
         setCurrentStep(parsed.step)
       }
     } catch {
@@ -172,12 +202,17 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
     }
   }, [availableClassrooms, getValues, setValue])
 
+  useEffect(() => {
+    const suggestedAmount = selectedPlan?.monthly_fee ?? selectedPlan?.total_fee ?? 0
+    setValue('primerPago.monto', suggestedAmount > 0 ? suggestedAmount : 0)
+  }, [selectedPlan?.id, selectedPlan?.monthly_fee, selectedPlan?.total_fee, setValue])
+
   async function handleNext() {
     const fields = STEPS[currentStep - 1].fields as unknown as Parameters<typeof trigger>[0]
     const isValid = await trigger(fields)
 
     if (!isValid) return
-    setCurrentStep((step) => Math.min(step + 1, 4))
+    setCurrentStep((step) => Math.min(step + 1, 5))
   }
 
   function handlePrev() {
@@ -187,12 +222,12 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
   const onSubmit = handleSubmit((values) => {
     startTransition(async () => {
       try {
-        const result = await createStudentWithPlan(values)
+        const result = await createStudentWithPayment(values)
 
         window.sessionStorage.removeItem(STORAGE_KEY)
 
-        toast.success('Alumno matriculado', {
-          description: 'La matrícula fue registrada correctamente.',
+        toast.success('Alumno registrado y pago confirmado', {
+          description: 'La matrícula y el primer pago fueron registrados correctamente.',
         })
 
         router.push(`/students/${result.student_id}`)
@@ -212,7 +247,7 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Matrícula guiada</p>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">Nuevo estudiante</h1>
           <p className="mt-2 text-sm leading-relaxed text-gray-500 md:text-base">
-            Completa los 4 pasos para registrar al estudiante, asignarlo a un ciclo y vincular su plan de pago.
+            Completa los 5 pasos para registrar al estudiante, asignarlo a un ciclo, vincular su plan y confirmar el primer pago.
           </p>
         </div>
       </div>
@@ -360,21 +395,98 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
                 <div>
                   <p className="text-sm text-gray-500">Cuota mensual</p>
                   <p className="mt-1 text-lg font-semibold text-gray-900">
-                    {selectedPlan?.monthly_fee != null
-                      ? new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(selectedPlan.monthly_fee)
-                      : '—'}
+                    {formatCurrency(selectedPlan?.monthly_fee ?? null)}
                   </p>
                 </div>
 
                 <div>
                   <p className="text-sm text-gray-500">Costo total</p>
                   <p className="mt-1 text-lg font-semibold text-gray-900">
-                    {selectedPlan?.total_fee != null
-                      ? new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(selectedPlan.total_fee)
-                      : '—'}
+                    {formatCurrency(selectedPlan?.total_fee ?? null)}
                   </p>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 5 && (
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Resumen</p>
+              <div className="mt-4 space-y-4">
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-sm font-semibold text-gray-900">{watch('name') || 'Alumno sin nombre'}</p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {selectedCycle?.name ?? 'Sin ciclo'} | {selectedClassroom?.name ?? 'Sin salón'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Plan</p>
+                  <p className="mt-1 text-base font-semibold text-gray-900">
+                    {selectedPlan?.name ?? 'Sin plan'}
+                    {selectedPlan?.monthly_fee != null ? ` · cuota ${formatCurrency(selectedPlan.monthly_fee)}` : ''}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Total</p>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">{formatCurrency(selectedPlan?.total_fee ?? null)}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-4 md:p-5">
+              <p className="mb-4 text-base font-semibold text-gray-900">Primer pago</p>
+
+              <div>
+                <label htmlFor="primerPago.monto" className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Monto a pagar
+                </label>
+                <input
+                  id="primerPago.monto"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  className="min-h-12 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  {...register('primerPago.monto', { valueAsNumber: true })}
+                />
+                {errors.primerPago?.monto && <p className="mt-1 text-xs text-red-600">{errors.primerPago.monto.message}</p>}
+              </div>
+
+              <div className="mt-5">
+                <label htmlFor="primerPago.metodo" className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Método
+                </label>
+                <select
+                  id="primerPago.metodo"
+                  className="min-h-12 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  {...register('primerPago.metodo')}
+                >
+                  <option value="efectivo">Efectivo</option>
+                  <option value="yape">Yape</option>
+                  <option value="plin">Plin</option>
+                  <option value="transferencia">Transferencia</option>
+                </select>
+                {errors.primerPago?.metodo && <p className="mt-1 text-xs text-red-600">{errors.primerPago.metodo.message}</p>}
+              </div>
+
+              <div className="mt-5">
+                <label htmlFor="primerPago.referencia" className="mb-1.5 block text-sm font-medium text-gray-700">
+                  Referencia
+                </label>
+                <input
+                  id="primerPago.referencia"
+                  type="text"
+                  placeholder="Ej: YPE-1234567890"
+                  className="min-h-12 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  {...register('primerPago.referencia')}
+                />
+                {errors.primerPago?.referencia && <p className="mt-1 text-xs text-red-600">{errors.primerPago.referencia.message}</p>}
+              </div>
+
+              <p className="mt-4 text-xs text-gray-500">
+                Monto sugerido: {formatCurrency(selectedPlan?.monthly_fee ?? null)}. Monto actual: {formatCurrency(Number.isFinite(primerPagoMonto) ? primerPagoMonto : null)}
+              </p>
             </div>
           </div>
         )}
@@ -389,7 +501,7 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
             Anterior
           </button>
 
-          {currentStep < 4 ? (
+          {currentStep < 5 ? (
             <button
               type="button"
               onClick={handleNext}
@@ -409,7 +521,7 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
               )}
-              Crear matrícula
+              Crear matrícula + Pago
             </button>
           )}
         </div>

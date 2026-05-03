@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 
-export interface CreateStudentWithPlanInput {
+export interface CreateStudentWithPaymentInput {
   name: string
   email: string | null
   phone: string | null
@@ -11,9 +11,28 @@ export interface CreateStudentWithPlanInput {
   classroom_id: string
   payment_plan_id: string
   payment_frequency: 'monthly' | 'quarterly' | 'yearly'
+  primerPago: {
+    monto: number
+    metodo: 'efectivo' | 'yape' | 'plin' | 'transferencia'
+    referencia?: string
+  }
 }
 
-export async function createStudentWithPlan(input: CreateStudentWithPlanInput) {
+function buildReceiptNumber() {
+  const now = new Date()
+  const stamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+    String(now.getSeconds()).padStart(2, '0'),
+  ].join('')
+  const random = Math.random().toString(36).slice(2, 6).toUpperCase()
+  return `MT-${stamp}-${random}`
+}
+
+export async function createStudentWithPayment(input: CreateStudentWithPaymentInput) {
   const supabase = createClient()
   const db = supabase as any
 
@@ -61,8 +80,75 @@ export async function createStudentWithPlan(input: CreateStudentWithPlanInput) {
     throw new Error('La RPC no devolvió el estudiante creado.')
   }
 
+  const studentId = result.student_id as string
+  let enrollmentId = (result.first_enrollment_id as string | null) ?? null
+
+  if (!enrollmentId) {
+    const { data: enrollment, error: enrollmentError } = await db
+      .from('enrollments')
+      .select('id')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (enrollmentError) {
+      throw new Error(enrollmentError.message)
+    }
+
+    enrollmentId = (enrollment as { id?: string } | null)?.id ?? null
+  }
+
+  if (!enrollmentId) {
+    throw new Error('No se pudo resolver la matrícula creada.')
+  }
+
+  const receiptNumber = buildReceiptNumber()
+  const paymentPayload = {
+    school_id: schoolId,
+    student_id: studentId,
+    enrollment_id: enrollmentId,
+    payment_plan_id: input.payment_plan_id,
+    paid_at: new Date().toISOString(),
+    receipt_number: receiptNumber,
+    amount: input.primerPago.monto,
+    method: input.primerPago.metodo,
+    reference: input.primerPago.referencia?.trim() || null,
+    status: 'completed',
+    created_by: user.id,
+    is_quick_payment: true,
+  }
+
+  let paymentInsert = await db
+    .from('payments')
+    .insert(paymentPayload)
+    .select('id')
+    .single()
+
+  if (paymentInsert.error && String(paymentInsert.error.message).toLowerCase().includes('is_quick_payment')) {
+    const { is_quick_payment, ...fallbackPayload } = paymentPayload
+    void is_quick_payment
+    paymentInsert = await db
+      .from('payments')
+      .insert(fallbackPayload)
+      .select('id')
+      .single()
+  }
+
+  if (paymentInsert.error || !paymentInsert.data?.id) {
+    throw new Error(paymentInsert.error?.message ?? 'No se pudo registrar el primer pago.')
+  }
+
+  const { error: applyError } = await db.rpc('fn_apply_payment_to_oldest_installments', {
+    payment_id: paymentInsert.data.id,
+  })
+
+  if (applyError) {
+    throw new Error(applyError.message)
+  }
+
   return {
-    student_id: result.student_id as string,
-    first_enrollment_id: (result.first_enrollment_id as string | null) ?? null,
+    student_id: studentId,
+    first_enrollment_id: enrollmentId,
   }
 }
