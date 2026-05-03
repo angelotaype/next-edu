@@ -78,6 +78,20 @@ const NAV_ITEMS = [
     ),
   },
   {
+    href: '/pagos/rapido',
+    label: 'Pago rápido',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M17 9V7a5 5 0 00-10 0v2M5 9h14l1 10H4L5 9zm7 4v3m0 0l-2-2m2 2l2-2"
+        />
+      </svg>
+    ),
+  },
+  {
     href: '/morosos',
     label: 'Morosos',
     icon: (
