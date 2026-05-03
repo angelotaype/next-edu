@@ -25,7 +25,7 @@ async function getDeudores(): Promise<DeudorRow[]> {
       .select(`
         id,
         student_id,
-        students ( id, code, documento, nombres, apellidos, photo_url ),
+        students ( id, code, dni, nombres, apellidos, photo_url ),
         cycles ( id, name ),
         classrooms ( id, name )
       `),
@@ -60,7 +60,7 @@ async function getDeudores(): Promise<DeudorRow[]> {
     const student = enrollment.students as {
       id?: string | null
       code?: string | null
-      documento?: string | null
+      dni?: string | null
       nombres?: string | null
       apellidos?: string | null
       photo_url?: string | null
@@ -80,7 +80,7 @@ async function getDeudores(): Promise<DeudorRow[]> {
       grouped.set(studentId, {
         id: studentId,
         code: (student?.code as string | null) ?? null,
-        documento: (student?.documento as string | null) ?? null,
+        documento: (student?.dni as string | null) ?? null,
         fullName: fullName(student ?? {}),
         photoUrl: (student?.photo_url as string | null) ?? null,
         cycleName: cycle?.name ?? null,
