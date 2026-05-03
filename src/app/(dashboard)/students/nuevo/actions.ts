@@ -207,17 +207,15 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
   const receiptNumber = buildReceiptNumber()
   const paymentPayload = {
     school_id: schoolId,
-    student_id: studentId,
-    enrollment_id: enrollmentId,
     payment_plan_id: paymentPlanId,
     paid_at: new Date().toISOString(),
     receipt_number: receiptNumber,
     amount: input.primerPago.monto,
     method: input.primerPago.metodo,
     reference: input.primerPago.referencia?.trim() || null,
-    status: 'completed',
-    created_by: user.id,
     is_quick_payment: true,
+    scanned_by: user.id,
+    created_by: user.id,
   }
 
   let paymentInsert = await db
