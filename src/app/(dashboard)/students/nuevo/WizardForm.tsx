@@ -247,7 +247,10 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
   const onSubmit = handleSubmit((values) => {
     startTransition(async () => {
       try {
-        const result = await createStudentWithPayment(values)
+        const result = await createStudentWithPayment({
+          ...values,
+          cycle_id: selectedCycle?.id ?? values.cycle_id,
+        })
 
         window.sessionStorage.removeItem(STORAGE_KEY)
 

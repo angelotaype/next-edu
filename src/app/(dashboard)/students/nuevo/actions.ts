@@ -105,6 +105,7 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
     dni: input.dni?.trim() || null,
     email: input.email?.trim() || null,
     phone: input.phone?.trim() || null,
+    cycle_id: input.cycle_id,
     classroom_id: input.classroom_id,
     estado_matricula: 'activo',
   }
