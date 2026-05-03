@@ -40,8 +40,9 @@ function buildReceiptNumber() {
 function buildStudentCode(schoolId: string, dni: string): string {
   const schoolPrefix = schoolId.slice(0, 3).toUpperCase()
   const dniSuffix = dni.slice(-4)
-  const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-  return `ALU-${schoolPrefix}-${dniSuffix}-${timestamp}`
+  const timestamp = Date.now().toString().slice(-8)
+  const random = Math.random().toString(36).slice(2, 6).toUpperCase()
+  return `ALU-${schoolPrefix}-${dniSuffix}-${timestamp}${random}`
 }
 
 function getFirstDueDate() {
