@@ -51,7 +51,14 @@ async function getStudentData(studentId: string): Promise<{
     .filter((value): value is string => Boolean(value))
 
   const [installmentsRes, attendanceRes] = enrollmentIds.length === 0
-    ? [{ data: [], error: null }, { data: [], error: null }]
+    ? [
+        { data: [], error: null },
+        await db
+          .from('attendance_logs')
+          .select('*')
+          .eq('student_id', studentId)
+          .order('scanned_at', { ascending: false }),
+      ]
     : await Promise.all([
         db
           .from('installments')
@@ -61,8 +68,8 @@ async function getStudentData(studentId: string): Promise<{
         db
           .from('attendance_logs')
           .select('*')
-          .in('enrollment_id', enrollmentIds)
-          .order('created_at', { ascending: false }),
+          .eq('student_id', studentId)
+          .order('scanned_at', { ascending: false }),
       ])
 
   if (installmentsRes.error) throw new Error(installmentsRes.error.message)
@@ -89,9 +96,9 @@ async function getStudentData(studentId: string): Promise<{
 
   const attendances: AttendanceRow[] = ((attendanceRes.data ?? []) as any[]).map((row) => ({
     id: row.id as string,
-    dateLabel: (row.check_in ?? row.checked_in_at ?? row.created_at ?? null) as string | null,
-    checkIn: (row.check_in ?? row.checked_in_at ?? null) as string | null,
-    checkOut: (row.check_out ?? row.checked_out_at ?? null) as string | null,
+    dateLabel: (row.scanned_at ?? null) as string | null,
+    checkIn: (row.scanned_at ?? null) as string | null,
+    checkOut: null,
   }))
 
   return { student, installments, attendances }
