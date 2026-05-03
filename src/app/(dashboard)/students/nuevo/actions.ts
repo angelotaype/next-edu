@@ -83,7 +83,6 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
     const fallbackPayload = {
       school_id: schoolId,
       name: planName,
-      amount: input.selectedPlan.monthlyAmount,
       total_amount: input.selectedPlan.totalAmount,
       installments: input.selectedPlan.installments,
       created_by: user.id,
