@@ -239,7 +239,7 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
   }
 
   const { error: applyError } = await db.rpc('fn_apply_payment_to_oldest_installments', {
-    payment_id: paymentInsert.data.id,
+    p_payment_id: paymentInsert.data.id,
   })
 
   if (applyError) {
