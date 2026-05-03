@@ -9,6 +9,11 @@ import { z } from 'zod'
 import { createStudentWithPayment } from './actions'
 
 const STORAGE_KEY = 'next-edu:student-wizard'
+const PLAN_TEMPLATES = [
+  { id: '6m', name: '6 cuotas mensuales', installments: 6, amount: 120 },
+  { id: '12m', name: '12 cuotas mensuales', installments: 12, amount: 60 },
+  { id: '3m', name: '3 cuotas', installments: 3, amount: 240 },
+] as const
 
 const wizardSchema = z.object({
   name: z.string().trim().min(3, 'Ingresa al menos 3 caracteres.').max(120, 'Máximo 120 caracteres.'),
@@ -17,7 +22,12 @@ const wizardSchema = z.object({
   dni: z.string().trim().max(30, 'Máximo 30 caracteres.').nullable(),
   cycle_id: z.string().uuid('Selecciona un ciclo válido.'),
   classroom_id: z.string().uuid('Selecciona un salón válido.'),
-  payment_plan_id: z.string().uuid('Selecciona un plan de pago válido.'),
+  selectedPlan: z.object({
+    templateId: z.string().min(1, 'Selecciona un tipo de plan.'),
+    installments: z.number().int().min(1, 'Plan inválido.'),
+    monthlyAmount: z.number().min(0.01, 'Plan inválido.'),
+    totalAmount: z.number().min(0.01, 'Plan inválido.'),
+  }),
   payment_frequency: z.enum(['monthly', 'quarterly', 'yearly']),
   primerPago: z.object({
     monto: z.number().min(0.01, 'Ingresa un monto mayor a 0.'),
@@ -41,24 +51,16 @@ interface ClassroomOption {
   nivel: string | null
 }
 
-interface PaymentPlanOption {
-  id: string
-  name: string
-  monthly_fee: number | null
-  total_fee: number | null
-}
-
 interface WizardFormProps {
   cycles: CycleOption[]
   classrooms: ClassroomOption[]
-  paymentPlans: PaymentPlanOption[]
 }
 
 const STEPS = [
   { number: 1, label: 'Datos', fields: ['name', 'email', 'phone', 'dni'] as const },
   { number: 2, label: 'Ciclo', fields: ['cycle_id'] as const },
   { number: 3, label: 'Salón', fields: ['classroom_id'] as const },
-  { number: 4, label: 'Plan', fields: ['payment_plan_id', 'payment_frequency'] as const },
+  { number: 4, label: 'Plan', fields: ['selectedPlan.templateId', 'selectedPlan.installments', 'selectedPlan.monthlyAmount', 'selectedPlan.totalAmount', 'payment_frequency'] as const },
   { number: 5, label: 'Pago', fields: ['primerPago.monto', 'primerPago.metodo', 'primerPago.referencia'] as const },
 ] as const
 
@@ -104,7 +106,7 @@ function Stepper({ currentStep }: { currentStep: number }) {
   )
 }
 
-export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardFormProps) {
+export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
   const [isPending, startTransition] = useTransition()
@@ -127,7 +129,12 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
       dni: null,
       cycle_id: '',
       classroom_id: '',
-      payment_plan_id: '',
+      selectedPlan: {
+        templateId: '',
+        installments: 0,
+        monthlyAmount: 0,
+        totalAmount: 0,
+      },
       payment_frequency: 'monthly',
       primerPago: {
         monto: 0,
@@ -138,7 +145,8 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
   })
 
   const selectedCycleId = watch('cycle_id')
-  const selectedPlanId = watch('payment_plan_id')
+  const selectedPlanTemplateId = watch('selectedPlan.templateId')
+  const selectedClassroomId = watch('classroom_id')
   const primerPagoMonto = watch('primerPago.monto')
 
   const availableClassrooms = useMemo(
@@ -146,17 +154,25 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
     [classrooms, selectedCycleId]
   )
 
-  const selectedPlan = useMemo(
-    () => paymentPlans.find((plan) => plan.id === selectedPlanId) ?? null,
-    [paymentPlans, selectedPlanId]
-  )
+  const selectedPlan = useMemo(() => {
+    const template = PLAN_TEMPLATES.find((plan) => plan.id === selectedPlanTemplateId)
+    if (!template) return null
+
+    return {
+      id: template.id,
+      name: template.name,
+      installments: template.installments,
+      monthly_fee: template.amount,
+      total_fee: template.installments * template.amount,
+    }
+  }, [selectedPlanTemplateId])
   const selectedCycle = useMemo(
     () => cycles.find((cycle) => cycle.id === selectedCycleId) ?? null,
     [cycles, selectedCycleId]
   )
   const selectedClassroom = useMemo(
-    () => classrooms.find((classroom) => classroom.id === watch('classroom_id')) ?? null,
-    [classrooms, watch]
+    () => classrooms.find((classroom) => classroom.id === selectedClassroomId) ?? null,
+    [classrooms, selectedClassroomId]
   )
 
   useEffect(() => {
@@ -204,8 +220,17 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
 
   useEffect(() => {
     const suggestedAmount = selectedPlan?.monthly_fee ?? selectedPlan?.total_fee ?? 0
+    if (selectedPlan) {
+      setValue('selectedPlan.installments', selectedPlan.installments)
+      setValue('selectedPlan.monthlyAmount', selectedPlan.monthly_fee ?? 0)
+      setValue('selectedPlan.totalAmount', selectedPlan.total_fee ?? 0)
+    } else {
+      setValue('selectedPlan.installments', 0)
+      setValue('selectedPlan.monthlyAmount', 0)
+      setValue('selectedPlan.totalAmount', 0)
+    }
     setValue('primerPago.monto', suggestedAmount > 0 ? suggestedAmount : 0)
-  }, [selectedPlan?.id, selectedPlan?.monthly_fee, selectedPlan?.total_fee, setValue])
+  }, [selectedPlan?.id, selectedPlan?.installments, selectedPlan?.monthly_fee, selectedPlan?.total_fee, setValue])
 
   async function handleNext() {
     const fields = STEPS[currentStep - 1].fields as unknown as Parameters<typeof trigger>[0]
@@ -359,20 +384,20 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
         {currentStep === 4 && (
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
             <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-4 md:p-5">
-              <label htmlFor="payment_plan_id" className="mb-1.5 block text-sm font-medium text-gray-700">
-                Plan de pago
+              <label htmlFor="selectedPlan.templateId" className="mb-1.5 block text-sm font-medium text-gray-700">
+                Tipo de plan
               </label>
               <select
-                id="payment_plan_id"
+                id="selectedPlan.templateId"
                 className="min-h-12 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                {...register('payment_plan_id')}
+                {...register('selectedPlan.templateId')}
               >
-                <option value="">Selecciona un plan</option>
-                {paymentPlans.map((plan) => (
+                <option value="">Selecciona un tipo de plan</option>
+                {PLAN_TEMPLATES.map((plan) => (
                   <option key={plan.id} value={plan.id}>{plan.name}</option>
                 ))}
               </select>
-              {errors.payment_plan_id && <p className="mt-1 text-xs text-red-600">{errors.payment_plan_id.message}</p>}
+              {errors.selectedPlan?.templateId && <p className="mt-1 text-xs text-red-600">{errors.selectedPlan.templateId.message}</p>}
 
               <label htmlFor="payment_frequency" className="mb-1.5 mt-5 block text-sm font-medium text-gray-700">
                 Frecuencia de pago
@@ -396,6 +421,13 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
                   <p className="text-sm text-gray-500">Cuota mensual</p>
                   <p className="mt-1 text-lg font-semibold text-gray-900">
                     {formatCurrency(selectedPlan?.monthly_fee ?? null)}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-500">Número de cuotas</p>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">
+                    {selectedPlan?.installments ?? '—'}
                   </p>
                 </div>
 
@@ -425,7 +457,7 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
                   <p className="text-sm text-gray-500">Plan</p>
                   <p className="mt-1 text-base font-semibold text-gray-900">
                     {selectedPlan?.name ?? 'Sin plan'}
-                    {selectedPlan?.monthly_fee != null ? ` · cuota ${formatCurrency(selectedPlan.monthly_fee)}` : ''}
+                    {selectedPlan?.monthly_fee != null ? ` · ${selectedPlan.installments} cuotas de ${formatCurrency(selectedPlan.monthly_fee)}` : ''}
                   </p>
                 </div>
                 <div>

@@ -9,7 +9,12 @@ export interface CreateStudentWithPaymentInput {
   dni: string | null
   cycle_id: string
   classroom_id: string
-  payment_plan_id: string
+  selectedPlan: {
+    templateId: string
+    installments: number
+    monthlyAmount: number
+    totalAmount: number
+  }
   payment_frequency: 'monthly' | 'quarterly' | 'yearly'
   primerPago: {
     monto: number
@@ -56,6 +61,47 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
     throw new Error('No se pudo resolver el colegio actual.')
   }
 
+  const planName = `${input.selectedPlan.installments} cuotas de S/ ${input.selectedPlan.monthlyAmount.toFixed(2)}`
+
+  const planPayloadBase = {
+    school_id: schoolId,
+    name: planName,
+    monthly_fee: input.selectedPlan.monthlyAmount,
+    total_fee: input.selectedPlan.totalAmount,
+    num_installments: input.selectedPlan.installments,
+    frequency: input.payment_frequency,
+    created_by: user.id,
+  }
+
+  let planInsert = await db
+    .from('payment_plans')
+    .insert(planPayloadBase)
+    .select('id')
+    .single()
+
+  if (planInsert.error) {
+    const fallbackPayload = {
+      school_id: schoolId,
+      name: planName,
+      amount: input.selectedPlan.monthlyAmount,
+      total_amount: input.selectedPlan.totalAmount,
+      installments: input.selectedPlan.installments,
+      created_by: user.id,
+    }
+
+    planInsert = await db
+      .from('payment_plans')
+      .insert(fallbackPayload)
+      .select('id')
+      .single()
+  }
+
+  if (planInsert.error || !planInsert.data?.id) {
+    throw new Error(planInsert.error?.message ?? 'No se pudo crear el plan de pago.')
+  }
+
+  const paymentPlanId = planInsert.data.id as string
+
   const payload = {
     school_id: schoolId,
     name: input.name.trim(),
@@ -64,7 +110,7 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
     dni: input.dni?.trim() || null,
     cycle_id: input.cycle_id,
     classroom_id: input.classroom_id,
-    payment_plan_id: input.payment_plan_id,
+    payment_plan_id: paymentPlanId,
     payment_frequency: input.payment_frequency,
   }
 
@@ -108,7 +154,7 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
     school_id: schoolId,
     student_id: studentId,
     enrollment_id: enrollmentId,
-    payment_plan_id: input.payment_plan_id,
+    payment_plan_id: paymentPlanId,
     paid_at: new Date().toISOString(),
     receipt_number: receiptNumber,
     amount: input.primerPago.monto,
