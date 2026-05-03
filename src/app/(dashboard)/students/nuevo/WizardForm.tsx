@@ -14,7 +14,7 @@ const wizardSchema = z.object({
   name: z.string().trim().min(3, 'Ingresa al menos 3 caracteres.').max(120, 'Máximo 120 caracteres.'),
   email: z.string().trim().email('Correo inválido.').nullable(),
   phone: z.string().trim().max(30, 'Máximo 30 caracteres.').nullable(),
-  documento: z.string().trim().max(30, 'Máximo 30 caracteres.').nullable(),
+  dni: z.string().trim().max(30, 'Máximo 30 caracteres.').nullable(),
   cycle_id: z.string().uuid('Selecciona un ciclo válido.'),
   classroom_id: z.string().uuid('Selecciona un salón válido.'),
   payment_plan_id: z.string().uuid('Selecciona un plan de pago válido.'),
@@ -55,7 +55,7 @@ interface WizardFormProps {
 }
 
 const STEPS = [
-  { number: 1, label: 'Datos', fields: ['name', 'email', 'phone', 'documento'] as const },
+  { number: 1, label: 'Datos', fields: ['name', 'email', 'phone', 'dni'] as const },
   { number: 2, label: 'Ciclo', fields: ['cycle_id'] as const },
   { number: 3, label: 'Salón', fields: ['classroom_id'] as const },
   { number: 4, label: 'Plan', fields: ['payment_plan_id', 'payment_frequency'] as const },
@@ -124,7 +124,7 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
       name: '',
       email: null,
       phone: null,
-      documento: null,
+      dni: null,
       cycle_id: '',
       classroom_id: '',
       payment_plan_id: '',
@@ -300,17 +300,17 @@ export default function WizardForm({ cycles, classrooms, paymentPlans }: WizardF
             </div>
 
             <div className="md:col-span-2">
-              <label htmlFor="documento" className="mb-1.5 block text-sm font-medium text-gray-700">
-                Documento
+              <label htmlFor="dni" className="mb-1.5 block text-sm font-medium text-gray-700">
+                DNI
               </label>
               <input
-                id="documento"
+                id="dni"
                 type="text"
                 placeholder="Opcional"
                 className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                {...register('documento', { setValueAs: (value) => value?.trim() ? value.trim() : null })}
+                {...register('dni', { setValueAs: (value) => value?.trim() ? value.trim() : null })}
               />
-              {errors.documento && <p className="mt-1 text-xs text-red-600">{errors.documento.message}</p>}
+              {errors.dni && <p className="mt-1 text-xs text-red-600">{errors.dni.message}</p>}
             </div>
           </div>
         )}

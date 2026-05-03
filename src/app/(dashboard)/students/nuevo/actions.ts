@@ -6,7 +6,7 @@ export interface CreateStudentWithPaymentInput {
   name: string
   email: string | null
   phone: string | null
-  documento: string | null
+  dni: string | null
   cycle_id: string
   classroom_id: string
   payment_plan_id: string
@@ -61,7 +61,7 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
     name: input.name.trim(),
     email: input.email?.trim() || null,
     phone: input.phone?.trim() || null,
-    documento: input.documento?.trim() || null,
+    dni: input.dni?.trim() || null,
     cycle_id: input.cycle_id,
     classroom_id: input.classroom_id,
     payment_plan_id: input.payment_plan_id,
