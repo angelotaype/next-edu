@@ -143,7 +143,6 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
   const studentId = studentInsert.data.id as string
 
   const enrollmentPayload = {
-    school_id: schoolId,
     student_id: studentId,
     cycle_id: input.cycle_id,
     classroom_id: input.classroom_id,
