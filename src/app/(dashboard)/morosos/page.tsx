@@ -34,7 +34,7 @@ async function getMorososRows(): Promise<MorosoRow[]> {
     db
       .from('installments')
       .select('id, enrollment_id, amount_due, due_date, status')
-      .neq('status', 'paid')
+      .neq('status', 'pagado')
       .order('due_date', { ascending: true }),
   ])
 
