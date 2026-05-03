@@ -37,6 +37,13 @@ function buildReceiptNumber() {
   return `MT-${stamp}-${random}`
 }
 
+function buildStudentCode(schoolId: string, dni: string): string {
+  const schoolPrefix = schoolId.slice(0, 3).toUpperCase()
+  const dniSuffix = dni.slice(-4)
+  const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  return `ALU-${schoolPrefix}-${dniSuffix}-${timestamp}`
+}
+
 function getFirstDueDate() {
   const now = new Date()
   const year = now.getFullYear()
@@ -97,9 +104,11 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
     throw new Error('No se pudo resolver el colegio actual.')
   }
   const { nombres, apellidos } = splitStudentName(input.name)
+  const studentCode = buildStudentCode(schoolId, input.dni || 'UNKNOWN')
 
   const studentPayload = {
     school_id: schoolId,
+    code: studentCode,
     nombres,
     apellidos,
     dni: input.dni?.trim() || null,
