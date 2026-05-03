@@ -55,12 +55,12 @@ function getFirstDueDate() {
 function getFrequencyInterval(frequency: CreateStudentWithPaymentInput['payment_frequency']) {
   switch (frequency) {
     case 'quarterly':
-      return "interval '3 month'"
+      return '3 months'
     case 'yearly':
-      return "interval '1 year'"
+      return '1 year'
     case 'monthly':
     default:
-      return "interval '1 month'"
+      return '1 month'
   }
 }
 
