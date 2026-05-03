@@ -97,8 +97,16 @@ async function getStudentData(studentId: string): Promise<{
   return { student, installments, attendances }
 }
 
-export default async function StudentDetailPage({ params }: { params: { id: string } }) {
+export default async function StudentDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string }
+  searchParams?: { tab?: string }
+}) {
   const { student, installments, attendances } = await getStudentData(params.id)
+  const tab = searchParams?.tab
+  const initialTab = tab === 'payments' || tab === 'attendance' || tab === 'card' ? tab : 'info'
 
   return (
     <div className="mx-auto w-full max-w-6xl">
@@ -112,7 +120,7 @@ export default async function StudentDetailPage({ params }: { params: { id: stri
         </div>
       </div>
 
-      <StudentTabs student={student} installments={installments} attendances={attendances} />
+      <StudentTabs student={student} installments={installments} attendances={attendances} initialTab={initialTab} />
     </div>
   )
 }

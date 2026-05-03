@@ -18,6 +18,7 @@ interface StudentTabsProps {
   student: StudentDetail
   installments: InstallmentRow[]
   attendances: AttendanceRow[]
+  initialTab?: 'info' | 'payments' | 'attendance' | 'card'
 }
 
 function statusClass(status: string | null) {
@@ -60,9 +61,9 @@ function InfoGrid({ student }: { student: StudentDetail }) {
   )
 }
 
-export default function StudentTabs({ student, installments, attendances }: StudentTabsProps) {
+export default function StudentTabs({ student, installments, attendances, initialTab = 'info' }: StudentTabsProps) {
   return (
-    <Tabs.Root defaultValue="info" className="space-y-5">
+    <Tabs.Root defaultValue={initialTab} className="space-y-5">
       <Tabs.List className="flex min-h-11 w-full gap-2 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-2 shadow-sm">
         {[
           ['info', 'Información'],
