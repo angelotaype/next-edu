@@ -247,7 +247,6 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
   const onSubmit = handleSubmit((values) => {
     startTransition(async () => {
       try {
-        console.log('📤 Sending to server:', values)
         const result = await createStudentWithPayment({
           ...values,
           cycle_id: selectedCycle?.id ?? values.cycle_id,

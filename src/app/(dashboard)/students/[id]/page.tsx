@@ -38,13 +38,6 @@ async function getStudentData(studentId: string): Promise<{
         .eq('id', studentId)
         .single()
 
-      console.log('📍 studentRes:', {
-        error: studentRes.error,
-        data: studentRes.data,
-        status: studentRes.status,
-        statusText: studentRes.statusText,
-      })
-
       if (studentRes.error) {
         console.error('❌ STUDENT ERROR COMPLETO:', JSON.stringify(studentRes.error, null, 2))
         if (studentRes.error.code === 'PGRST116') notFound()
