@@ -15,93 +15,117 @@ async function getStudentData(studentId: string): Promise<{
   installments: InstallmentRow[]
   attendances: AttendanceRow[]
 }> {
-  const supabase = createClient()
-  const db = supabase as any
+  try {
+    const supabase = createClient()
+    const db = supabase as any
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-  if (!user) redirect('/login')
+    if (!user) redirect('/login')
 
-  const [studentRes, enrollmentsRes] = await Promise.all([
-    db
-      .from('students')
-      .select(`
-        id, code, nombres, apellidos, estado_matricula,
-        classrooms ( id, name, cycles ( id, name ) )
-      `)
-      .eq('id', studentId)
-      .single(),
-    db
+    let studentRes: any
+    try {
+      studentRes = await db
+        .from('students')
+        .select('*')
+        .eq('id', studentId)
+        .single()
+
+      console.log('📍 studentRes:', {
+        error: studentRes.error,
+        data: studentRes.data,
+        status: studentRes.status,
+        statusText: studentRes.statusText,
+      })
+
+      if (studentRes.error) {
+        console.error('❌ STUDENT ERROR COMPLETO:', JSON.stringify(studentRes.error, null, 2))
+        if (studentRes.error.code === 'PGRST116') notFound()
+        throw new Error(`Student: ${studentRes.error.code} - ${studentRes.error.message}`)
+      }
+    } catch (e) {
+      console.error('❌ Complete error:', e)
+      throw e
+    }
+
+    const enrollmentsRes = await db
       .from('enrollments')
       .select('id')
-      .eq('student_id', studentId),
-  ])
+      .eq('student_id', studentId)
 
-  if (studentRes.error) {
-    if (studentRes.error.code === 'PGRST116') notFound()
-    throw new Error(studentRes.error.message)
+    if (enrollmentsRes.error) {
+      console.error('❌ Enrollments query error:', enrollmentsRes.error)
+      throw new Error(`Enrollments: ${enrollmentsRes.error.message}`)
+    }
+
+    const enrollmentIds = ((enrollmentsRes.data ?? []) as Array<{ id?: string | null }>)
+      .map((row) => row.id)
+      .filter((value): value is string => Boolean(value))
+
+    const [installmentsRes, attendanceRes] = enrollmentIds.length === 0
+      ? [
+          { data: [], error: null },
+          await db
+            .from('attendance_logs')
+            .select('*')
+            .eq('student_id', studentId)
+            .order('scanned_at', { ascending: false }),
+        ]
+      : await Promise.all([
+          db
+            .from('installments')
+            .select('*')
+            .in('enrollment_id', enrollmentIds)
+            .order('due_date', { ascending: true }),
+          db
+            .from('attendance_logs')
+            .select('*')
+            .eq('student_id', studentId)
+            .order('scanned_at', { ascending: false }),
+        ])
+
+    if (installmentsRes.error) {
+      console.error('❌ Installments query error:', installmentsRes.error)
+      throw new Error(`Installments: ${installmentsRes.error.message}`)
+    }
+
+    if (attendanceRes.error) {
+      console.error('❌ Attendance query error:', attendanceRes.error)
+      throw new Error(`Attendance: ${attendanceRes.error.message}`)
+    }
+
+    const studentRaw = studentRes.data as any
+
+    const student: StudentDetail = {
+      id: studentRaw.id as string,
+      fullName: fullName(studentRaw),
+      code: (studentRaw.code as string | null) ?? null,
+      cycleName: (studentRaw.cycle_id as string | null) ?? null,
+      classroomName: (studentRaw.classroom_id as string | null) ?? null,
+      status: (studentRaw.estado_matricula as string | null) ?? null,
+    }
+
+    const installments: InstallmentRow[] = ((installmentsRes.data ?? []) as any[]).map((row) => ({
+      id: row.id as string,
+      amount: typeof row.amount === 'number' ? row.amount : row.amount != null ? Number(row.amount) : null,
+      dueDate: (row.due_date as string | null) ?? null,
+      status: (row.status as string | null) ?? null,
+    }))
+
+    const attendances: AttendanceRow[] = ((attendanceRes.data ?? []) as any[]).map((row) => ({
+      id: row.id as string,
+      dateLabel: (row.scanned_at ?? null) as string | null,
+      checkIn: (row.scanned_at ?? null) as string | null,
+      checkOut: null,
+    }))
+
+    return { student, installments, attendances }
+  } catch (e) {
+    console.error('❌ Complete error:', e)
+    throw e
   }
-
-  if (enrollmentsRes.error) throw new Error(enrollmentsRes.error.message)
-
-  const enrollmentIds = ((enrollmentsRes.data ?? []) as Array<{ id?: string | null }>)
-    .map((row) => row.id)
-    .filter((value): value is string => Boolean(value))
-
-  const [installmentsRes, attendanceRes] = enrollmentIds.length === 0
-    ? [
-        { data: [], error: null },
-        await db
-          .from('attendance_logs')
-          .select('*')
-          .eq('student_id', studentId)
-          .order('scanned_at', { ascending: false }),
-      ]
-    : await Promise.all([
-        db
-          .from('installments')
-          .select('*')
-          .in('enrollment_id', enrollmentIds)
-          .order('due_date', { ascending: true }),
-        db
-          .from('attendance_logs')
-          .select('*')
-          .eq('student_id', studentId)
-          .order('scanned_at', { ascending: false }),
-      ])
-
-  if (installmentsRes.error) throw new Error(installmentsRes.error.message)
-  if (attendanceRes.error) throw new Error(attendanceRes.error.message)
-
-  const studentRaw = studentRes.data as any
-  const classroom = studentRaw.classrooms as { name?: string | null; cycles?: { name?: string | null } | null } | null
-
-  const student: StudentDetail = {
-    id: studentRaw.id as string,
-    fullName: fullName(studentRaw),
-    code: (studentRaw.code as string | null) ?? null,
-    cycleName: classroom?.cycles?.name ?? null,
-    classroomName: classroom?.name ?? null,
-    status: (studentRaw.estado_matricula as string | null) ?? null,
-  }
-
-  const installments: InstallmentRow[] = ((installmentsRes.data ?? []) as any[]).map((row) => ({
-    id: row.id as string,
-    amount: typeof row.amount === 'number' ? row.amount : row.amount != null ? Number(row.amount) : null,
-    dueDate: (row.due_date as string | null) ?? null,
-    status: (row.status as string | null) ?? null,
-  }))
-
-  const attendances: AttendanceRow[] = ((attendanceRes.data ?? []) as any[]).map((row) => ({
-    id: row.id as string,
-    dateLabel: (row.scanned_at ?? null) as string | null,
-    checkIn: (row.scanned_at ?? null) as string | null,
-    checkOut: null,
-  }))
-
-  return { student, installments, attendances }
 }
 
 export default async function StudentDetailPage({
