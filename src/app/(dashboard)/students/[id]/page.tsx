@@ -29,7 +29,12 @@ async function getStudentData(studentId: string): Promise<{
     try {
       studentRes = await db
         .from('students')
-        .select('*')
+        .select(`
+          id, code, nombres, apellidos, estado, dni,
+          cycle_id, classroom_id, estado_matricula,
+          cycles!cycle_id(id, name),
+          classrooms!classroom_id(id, name)
+        `)
         .eq('id', studentId)
         .single()
 
@@ -97,13 +102,15 @@ async function getStudentData(studentId: string): Promise<{
     }
 
     const studentRaw = studentRes.data as any
+    const cycles = studentRaw.cycles as { id?: string; name?: string } | null
+    const classrooms = studentRaw.classrooms as { id?: string; name?: string } | null
 
     const student: StudentDetail = {
       id: studentRaw.id as string,
       fullName: fullName(studentRaw),
       code: (studentRaw.code as string | null) ?? null,
-      cycleName: (studentRaw.cycle_id as string | null) ?? null,
-      classroomName: (studentRaw.classroom_id as string | null) ?? null,
+      cycleName: cycles?.name ?? null,
+      classroomName: classrooms?.name ?? null,
       status: (studentRaw.estado_matricula as string | null) ?? null,
     }
 
