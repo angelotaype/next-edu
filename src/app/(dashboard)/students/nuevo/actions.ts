@@ -73,8 +73,8 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
     code: studentCode,
     nombres: parsed.nombres,
     apellidos: parsed.apellidos,
-    dni: parsed.dni,
-    email: parsed.email,
+    dni: parsed.dni && parsed.dni.trim() ? parsed.dni : null,
+    email: parsed.email || null,
     cycle_id: parsed.cycle_id,
     classroom_id: parsed.classroom_id,
     estado_matricula: 'activo',
@@ -82,14 +82,14 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
 
   if (studentColumns.has('estado')) studentPayload.estado = 'activo'
   if (studentColumns.has('created_by')) studentPayload.created_by = user.id
-  if (studentColumns.has('phone')) studentPayload.phone = parsed.telefono
-  if (studentColumns.has('telefono')) studentPayload.telefono = parsed.telefono
-  if (studentColumns.has('fecha_nacimiento')) studentPayload.fecha_nacimiento = parsed.fecha_nacimiento
-  if (studentColumns.has('direccion')) studentPayload.direccion = parsed.direccion
-  if (studentColumns.has('apoderado_nombre')) studentPayload.apoderado_nombre = parsed.apoderado_nombre
-  if (studentColumns.has('apoderado_telefono')) studentPayload.apoderado_telefono = parsed.apoderado_telefono
-  if (studentColumns.has('apoderado_email')) studentPayload.apoderado_email = parsed.apoderado_email
-  if (studentColumns.has('observaciones')) studentPayload.observaciones = parsed.observaciones
+  if (studentColumns.has('phone')) studentPayload.phone = parsed.telefono || null
+  if (studentColumns.has('telefono')) studentPayload.telefono = parsed.telefono || null
+  if (studentColumns.has('fecha_nacimiento')) studentPayload.fecha_nacimiento = parsed.fecha_nacimiento || null
+  if (studentColumns.has('direccion')) studentPayload.direccion = parsed.direccion || null
+  if (studentColumns.has('apoderado_nombre')) studentPayload.apoderado_nombre = parsed.apoderado_nombre || null
+  if (studentColumns.has('apoderado_telefono')) studentPayload.apoderado_telefono = parsed.apoderado_telefono || null
+  if (studentColumns.has('apoderado_email')) studentPayload.apoderado_email = parsed.apoderado_email || null
+  if (studentColumns.has('observaciones')) studentPayload.observaciones = parsed.observaciones || null
 
   let studentInsert = await db
     .from('students')
