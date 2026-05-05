@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Next Edu
 
-## Getting Started
+Next Edu es un MVP de gestion escolar construido con Next.js 14 y Supabase. Centraliza matricula, control de alumnos, asistencia por QR y pagos rapidos en una sola aplicacion.
 
-First, run the development server:
+## Modulos incluidos
+
+- Login institucional con Supabase Auth
+- Dashboard protegido por middleware
+- Registro guiado de alumnos con matricula y primer pago
+- Perfil de alumno con tabs de cuotas, asistencia y carnet QR
+- Escaner QR para asistencia y cobro rapido
+- Vistas de pagos rapidos, morosidad, ciclos y salones
+
+## Stack
+
+- Next.js 14 App Router
+- React 18
+- TypeScript
+- Tailwind CSS
+- Supabase SSR + Supabase Auth
+- React Hook Form + Zod
+- Sonner para toasts
+
+## Requisitos
+
+- Node.js 20+
+- npm 10+
+- Proyecto Supabase con las tablas, funciones RPC y politicas del MVP
+- Doppler opcional para desarrollo local
+
+## Variables de entorno
+
+La aplicacion usa estas variables:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+Uso recomendado por entorno:
+
+- `.env.local`: desarrollo local o scripts manuales
+- Doppler: `npm run dev` ya esta configurado para ejecutar `doppler run -- next dev`
+- proveedor de hosting: configura las mismas variables en el entorno remoto
+
+## Setup local
+
+1. Instala dependencias:
+
+```bash
+npm install
+```
+
+2. Crea `.env.local` con tus credenciales de Supabase o configura Doppler.
+
+3. Inicia el proyecto:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Abre `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run dev
+npm run build
+npm run start
+npm run lint
+```
 
-## Learn More
+Script util de limpieza:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+node --experimental-strip-types src/scripts/clean-test-data.ts
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Nota: este script requiere `NEXT_PUBLIC_SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` con permisos reales sobre las tablas objetivo.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Estructura principal
 
-## Deploy on Vercel
+```text
+src/app/(auth)           Login
+src/app/(dashboard)      Modulos protegidos del panel
+src/components           UI, shell y flujos compartidos
+src/lib                  Clientes Supabase, utilidades y esquemas Zod
+src/scripts              Scripts operativos
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Build y verificacion
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+El build de Next.js compila correctamente con:
+
+```bash
+npm run build
+```
+
+Hay un ajuste pendiente en ESLint del proyecto: la configuracion actual referencia `next/typescript` y puede fallar al cargar esa extension en algunas maquinas.
+
+## Deployment
+
+La guia de despliegue esta en [DEPLOYMENT.md](./DEPLOYMENT.md).
