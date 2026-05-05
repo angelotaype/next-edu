@@ -110,6 +110,7 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
   const [isPending, startTransition] = useTransition()
+  const isLoading = isPending
 
   const {
     register,
@@ -283,6 +284,7 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
       <Stepper currentStep={currentStep} />
 
       <form onSubmit={onSubmit} className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm md:p-6">
+        <fieldset disabled={isLoading} className="contents">
         {currentStep === 1 && (
           <div className="grid gap-5 md:grid-cols-2">
             <div className="md:col-span-2">
@@ -530,7 +532,7 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
           <button
             type="button"
             onClick={handlePrev}
-            disabled={currentStep === 1 || isPending}
+            disabled={currentStep === 1 || isLoading}
             className="inline-flex min-h-11 items-center justify-center rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
             Anterior
@@ -540,26 +542,28 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
             <button
               type="button"
               onClick={handleNext}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md active:scale-[0.98]"
+              disabled={isLoading}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
               Siguiente
             </button>
           ) : (
             <button
               type="submit"
-              disabled={isPending}
+              disabled={isLoading}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isPending && (
+              {isLoading && (
                 <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
               )}
-              Crear matrícula + Pago
+              {isLoading ? 'Guardando...' : 'Crear matrícula + Pago'}
             </button>
           )}
         </div>
+        </fieldset>
       </form>
     </div>
   )

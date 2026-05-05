@@ -37,6 +37,7 @@ export default function QuickPaymentModal({
   onPaid?: () => void
 }) {
   const [isPending, startTransition] = useTransition()
+  const isLoading = isPending
   const [receipt, setReceipt] = useState<PaymentReceiptData | null>(null)
   const defaultAmount = student ? Math.max(student.overdueAmount ?? student.debtAmount, 0.01) : 0.01
 
@@ -125,6 +126,7 @@ export default function QuickPaymentModal({
               </div>
 
               <form onSubmit={onSubmit} className="space-y-4">
+                <fieldset disabled={isLoading} className="space-y-4">
                 <div>
                   <label htmlFor="monto" className="mb-1.5 block text-sm font-medium text-gray-700">
                     Monto
@@ -166,19 +168,27 @@ export default function QuickPaymentModal({
                   <Dialog.Close asChild>
                     <button
                       type="button"
-                      className="min-h-11 rounded-xl border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:border-gray-300"
+                      disabled={isLoading}
+                      className="min-h-11 rounded-xl border border-gray-200 px-4 text-sm font-medium text-gray-700 transition hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Cancelar
                     </button>
                   </Dialog.Close>
                   <button
                     type="submit"
-                    disabled={isPending || !student}
-                    className="min-h-11 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                    disabled={isLoading || !student}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
                   >
-                    {isPending ? 'Registrando...' : 'Registrar pago'}
+                    {isLoading && (
+                      <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    )}
+                    {isLoading ? 'Registrando...' : 'Registrar pago'}
                   </button>
                 </div>
+                </fieldset>
               </form>
             </>
           )}
