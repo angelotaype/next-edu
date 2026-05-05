@@ -23,6 +23,9 @@ interface QuickPaymentStudent {
   fullName: string
   debtAmount: number
   overdueAmount?: number
+  pendingInstallments?: number
+  nextInstallmentAmount?: number
+  paymentStatus?: string
 }
 
 export default function QuickPaymentModal({
@@ -57,6 +60,9 @@ export default function QuickPaymentModal({
     },
   })
   const selectedMethod = watch('metodo') ?? 'efectivo'
+  const enteredAmount = watch('monto') ?? defaultAmount
+  const currentDebtAmount = student?.debtAmount ?? 0
+  const overpaymentAmount = enteredAmount > currentDebtAmount ? enteredAmount - currentDebtAmount : 0
 
   useEffect(() => {
     if (!open || !student) return
@@ -124,19 +130,41 @@ export default function QuickPaymentModal({
                 <Dialog.Description className="mt-2 text-sm leading-relaxed text-gray-500">
                   Registra un abono rápido y aplícalo automáticamente a las cuotas pendientes.
                 </Dialog.Description>
-                <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-700">Deuda vencida</p>
-                  <p className="mt-1 text-lg font-bold text-red-700">
-                    {new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(student?.overdueAmount ?? student?.debtAmount ?? 0)}
-                  </p>
-                </div>
+              <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-700">Deuda vencida</p>
+                <p className="mt-1 text-lg font-bold text-red-700">
+                  {new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(student?.overdueAmount ?? student?.debtAmount ?? 0)}
+                </p>
               </div>
+              {student && (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {student.debtAmount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setValue('monto', student.debtAmount, { shouldDirty: true, shouldValidate: true })}
+                      className="rounded-xl bg-green-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-green-700"
+                    >
+                      Pagar todo: {new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(student.debtAmount)}
+                    </button>
+                  )}
+                  {(student.nextInstallmentAmount ?? 0) > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setValue('monto', student.nextInstallmentAmount ?? 0, { shouldDirty: true, shouldValidate: true })}
+                      className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-700"
+                    >
+                      Próxima cuota: {new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(student.nextInstallmentAmount ?? 0)}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
 
               <form onSubmit={onSubmit} className="space-y-4">
                 <fieldset disabled={isLoading} className="space-y-4">
                 <div>
                   <label htmlFor="monto" className="mb-1.5 block text-sm font-medium text-gray-700">
-                    Monto
+                    Monto a pagar
                   </label>
                   <input
                     id="monto"
@@ -148,6 +176,22 @@ export default function QuickPaymentModal({
                   />
                   {errors.monto && <p className="mt-1 text-xs text-red-600">{errors.monto.message}</p>}
                 </div>
+
+                {student && student.debtAmount > 0 && overpaymentAmount > 0 && (
+                  <div className="rounded-xl border border-green-500 bg-green-100 px-4 py-3">
+                    <p className="text-sm text-green-700">
+                      Sobrepago detectado: {new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(overpaymentAmount)} quedará como crédito.
+                    </p>
+                  </div>
+                )}
+
+                {student && student.debtAmount === 0 && enteredAmount > 0 && (
+                  <div className="rounded-xl border border-blue-500 bg-blue-100 px-4 py-3">
+                    <p className="text-sm text-blue-700">
+                      Se registrará como crédito anticipado: {new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(enteredAmount)}.
+                    </p>
+                  </div>
+                )}
 
                 <div>
                   <label htmlFor="metodo" className="mb-1.5 block text-sm font-medium text-gray-700">
@@ -202,7 +246,7 @@ export default function QuickPaymentModal({
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
                     )}
-                    {isLoading ? 'Registrando...' : 'Registrar pago'}
+                    {isLoading ? 'Registrando...' : `Registrar pago: ${new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(enteredAmount)}`}
                   </button>
                 </div>
                 </fieldset>

@@ -14,6 +14,7 @@ export interface PaymentReceiptData {
   paidAt: string
   method: string
   studentName: string
+  creditRemaining?: number
 }
 
 export default function PaymentReceipt({
@@ -52,6 +53,12 @@ export default function PaymentReceipt({
           <p className="text-gray-400">Método</p>
           <p className="mt-1 font-semibold capitalize text-gray-900">{receipt.method}</p>
         </div>
+        {receipt.creditRemaining != null && receipt.creditRemaining > 0 && (
+          <div className="sm:col-span-2">
+            <p className="text-gray-400">Crédito a favor</p>
+            <p className="mt-1 font-semibold text-green-700">{formatCurrency(receipt.creditRemaining)}</p>
+          </div>
+        )}
       </div>
     </div>
   )
