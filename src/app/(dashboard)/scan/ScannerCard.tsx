@@ -77,7 +77,8 @@ export default function ScannerCard() {
 
   async function logQrAction(student: StudentResult, action: string, notes?: string) {
     const supabase = createClient()
-    const { error } = await supabase.from('attendance_qr_log').insert({
+    const db = supabase as any
+    const { error } = await db.from('attendance_qr_log').insert({
       school_id: student.school_id,
       student_id: student.student_id,
       qr_token: student.qr_token ?? student.student_code,
@@ -98,6 +99,7 @@ export default function ScannerCard() {
     setErrorMsg('')
 
     const supabase = createClient()
+    const db = supabase as any
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -105,7 +107,7 @@ export default function ScannerCard() {
     if (!user) return
 
     try {
-      let studentQuery = await supabase
+      let studentQuery = await db
         .from('student_qr_status')
         .select('*')
         .eq('qr_token', normalizedToken)
@@ -116,7 +118,7 @@ export default function ScannerCard() {
       }
 
       if (!studentQuery.data) {
-        studentQuery = await supabase
+        studentQuery = await db
           .from('student_qr_status')
           .select('*')
           .eq('code', normalizedToken)
@@ -173,9 +175,10 @@ export default function ScannerCard() {
     if (!student) return
 
     const supabase = createClient()
+    const db = supabase as any
     const scannedAt = new Date().toISOString()
 
-    const { error } = await supabase.from('attendance_logs').insert({
+    const { error } = await db.from('attendance_logs').insert({
       school_id: student.school_id,
       student_id: student.student_id,
       scanned_at: scannedAt,
