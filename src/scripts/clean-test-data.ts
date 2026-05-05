@@ -15,7 +15,7 @@ function getRequiredEnv(name: string) {
 }
 
 async function deleteByIds(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   table: string,
   column: string,
   ids: string[]
