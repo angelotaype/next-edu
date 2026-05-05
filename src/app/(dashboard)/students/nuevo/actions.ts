@@ -1,27 +1,9 @@
 'use server'
 
+import { CreateStudentSchema, type CreateStudentInput } from '@/lib/schemas'
 import { createClient } from '@/lib/supabase/server'
 
-export interface CreateStudentWithPaymentInput {
-  name: string
-  email: string | null
-  phone: string | null
-  dni: string | null
-  cycle_id: string
-  classroom_id: string
-  selectedPlan: {
-    templateId: string
-    installments: number
-    monthlyAmount: number
-    totalAmount: number
-  }
-  payment_frequency: 'monthly' | 'quarterly' | 'yearly'
-  primerPago: {
-    monto: number
-    metodo: 'efectivo' | 'yape' | 'plin' | 'transferencia'
-    referencia?: string
-  }
-}
+export type CreateStudentWithPaymentInput = CreateStudentInput
 
 function buildReceiptNumber() {
   const now = new Date()
@@ -80,6 +62,7 @@ function splitStudentName(fullName: string) {
 }
 
 export async function createStudentWithPayment(input: CreateStudentWithPaymentInput) {
+  const parsed = CreateStudentSchema.parse(input)
   const supabase = createClient()
   const db = supabase as any
 
@@ -102,19 +85,19 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
   if (profileError || !schoolId) {
     throw new Error('No se pudo resolver el colegio actual.')
   }
-  const { nombres, apellidos } = splitStudentName(input.name)
-  const studentCode = buildStudentCode(schoolId, input.dni || 'UNKNOWN')
+  const { nombres, apellidos } = splitStudentName(parsed.name)
+  const studentCode = buildStudentCode(schoolId, parsed.dni || 'UNKNOWN')
 
   const studentPayload = {
     school_id: schoolId,
     code: studentCode,
     nombres,
     apellidos,
-    dni: input.dni?.trim() || null,
-    email: input.email?.trim() || null,
-    phone: input.phone?.trim() || null,
-    cycle_id: input.cycle_id,
-    classroom_id: input.classroom_id,
+    dni: parsed.dni,
+    email: parsed.email,
+    phone: parsed.phone,
+    cycle_id: parsed.cycle_id,
+    classroom_id: parsed.classroom_id,
     estado_matricula: 'activo',
   }
 
@@ -144,8 +127,8 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
   const enrollmentPayload = {
     school_id: schoolId,
     student_id: studentId,
-    cycle_id: input.cycle_id,
-    classroom_id: input.classroom_id,
+    cycle_id: parsed.cycle_id,
+    classroom_id: parsed.classroom_id,
     created_by: user.id,
   }
 
@@ -171,15 +154,15 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
     throw new Error(enrollmentInsert.error?.message ?? 'No se pudo crear la matrícula.')
   }
 
-  const planName = `${input.selectedPlan.installments} cuotas de S/ ${input.selectedPlan.monthlyAmount.toFixed(2)}`
+  const planName = `${parsed.selectedPlan.installments} cuotas de S/ ${parsed.selectedPlan.monthlyAmount.toFixed(2)}`
   const { data: paymentPlan, error: paymentPlanError } = await db
     .from('payment_plans')
     .insert({
       school_id: schoolId,
       student_id: studentId,
-      cycle_id: input.cycle_id,
+      cycle_id: parsed.cycle_id,
       name: planName,
-      total_amount: input.selectedPlan.totalAmount,
+      total_amount: parsed.selectedPlan.totalAmount,
       status: 'activo',
     })
     .select('id')
@@ -196,9 +179,9 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
   const paymentPlanId = paymentPlan.id as string
   const generatePayload = {
     p_payment_plan_id: paymentPlanId,
-    p_num_installments: input.selectedPlan.installments,
+    p_num_installments: parsed.selectedPlan.installments,
     p_first_due_date: getFirstDueDate(),
-    p_frequency: getFrequencyInterval(input.payment_frequency),
+    p_frequency: getFrequencyInterval(parsed.payment_frequency),
   }
 
   const generateRes = await db.rpc('fn_generate_installments', generatePayload)
@@ -213,9 +196,9 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
     payment_plan_id: paymentPlanId,
     paid_at: new Date().toISOString(),
     receipt_number: receiptNumber,
-    amount: input.primerPago.monto,
-    method: input.primerPago.metodo,
-    reference: input.primerPago.referencia?.trim() || null,
+    amount: parsed.primerPago.monto,
+    method: parsed.primerPago.metodo,
+    reference: parsed.primerPago.referencia ?? null,
     is_quick_payment: true,
     scanned_by: user.id,
     created_by: user.id,
