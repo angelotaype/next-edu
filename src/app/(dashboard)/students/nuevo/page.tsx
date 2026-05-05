@@ -31,7 +31,6 @@ async function getWizardData() {
       .from('cycles')
       .select('id, name')
       .eq('school_id', schoolId)
-      .eq('estado', 'activo')
       .is('deleted_at', null)
       .order('start_date', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false }),

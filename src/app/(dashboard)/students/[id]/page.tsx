@@ -48,21 +48,22 @@ async function getStudentData(studentId: string): Promise<{
       throw e
     }
 
-    const enrollmentsRes = await db
-      .from('enrollments')
+    const paymentPlansRes = await db
+      .from('payment_plans')
       .select('id')
       .eq('student_id', studentId)
+      .is('deleted_at', null)
 
-    if (enrollmentsRes.error) {
-      console.error('❌ Enrollments query error:', enrollmentsRes.error)
-      throw new Error(`Enrollments: ${enrollmentsRes.error.message}`)
+    if (paymentPlansRes.error) {
+      console.error('❌ Payment plans query error:', paymentPlansRes.error)
+      throw new Error(`PaymentPlans: ${paymentPlansRes.error.message}`)
     }
 
-    const enrollmentIds = ((enrollmentsRes.data ?? []) as Array<{ id?: string | null }>)
+    const paymentPlanIds = ((paymentPlansRes.data ?? []) as Array<{ id?: string | null }>)
       .map((row) => row.id)
       .filter((value): value is string => Boolean(value))
 
-    const [installmentsRes, attendanceRes] = enrollmentIds.length === 0
+    const [installmentsRes, attendanceRes] = paymentPlanIds.length === 0
       ? [
           { data: [], error: null },
           await db
@@ -75,7 +76,7 @@ async function getStudentData(studentId: string): Promise<{
           db
             .from('installments')
             .select('*')
-            .in('enrollment_id', enrollmentIds)
+            .in('payment_plan_id', paymentPlanIds)
             .order('due_date', { ascending: true }),
           db
             .from('attendance_logs')
@@ -119,7 +120,7 @@ async function getStudentData(studentId: string): Promise<{
 
     const installments: InstallmentRow[] = ((installmentsRes.data ?? []) as any[]).map((row) => ({
       id: row.id as string,
-      amount: typeof row.amount === 'number' ? row.amount : row.amount != null ? Number(row.amount) : null,
+      amount: typeof row.amount_due === 'number' ? row.amount_due : row.amount_due != null ? Number(row.amount_due) : null,
       dueDate: (row.due_date as string | null) ?? null,
       status: (row.status as string | null) ?? null,
     }))
