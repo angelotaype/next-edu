@@ -44,6 +44,8 @@ export default function QuickPaymentModal({
   const {
     register,
     reset,
+    setValue,
+    watch,
     handleSubmit,
     formState: { errors },
   } = useForm<QuickPaymentValues>({
@@ -54,6 +56,7 @@ export default function QuickPaymentModal({
       referencia: '',
     },
   })
+  const selectedMethod = watch('metodo') ?? 'efectivo'
 
   useEffect(() => {
     if (!open || !student) return
@@ -80,6 +83,10 @@ export default function QuickPaymentModal({
 
   const onSubmit = handleSubmit((values) => {
     if (!student) return
+    if (!values.metodo || !['efectivo', 'yape', 'plin', 'transferencia', 'tarjeta'].includes(values.metodo)) {
+      toast.error('Selecciona un método de pago válido')
+      return
+    }
 
     startTransition(async () => {
       try {
@@ -146,7 +153,17 @@ export default function QuickPaymentModal({
                   <label htmlFor="metodo" className="mb-1.5 block text-sm font-medium text-gray-700">
                     Método
                   </label>
-                  <PaymentMethodSelect id="metodo" {...register('metodo')} />
+                  <PaymentMethodSelect
+                    id="metodo"
+                    value={selectedMethod}
+                    {...register('metodo')}
+                    onChange={(event) => {
+                      setValue('metodo', event.target.value as QuickPaymentValues['metodo'], {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }}
+                  />
                   {errors.metodo && <p className="mt-1 text-xs text-red-600">{errors.metodo.message}</p>}
                 </div>
 
