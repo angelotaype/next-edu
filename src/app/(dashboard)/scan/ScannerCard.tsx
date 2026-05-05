@@ -72,10 +72,12 @@ export default function ScannerCard() {
     streamRef.current = null
   }
 
-  async function processQRToken(token: string) {
-    if (!token.trim()) return
+async function processQRToken(token: string) {
+    const normalizedToken = token.trim()
+    if (!normalizedToken) return
     setStatus('scanning')
     setStudent(null)
+    setErrorMsg('')
 
     const supabase = createClient()
     const {
@@ -85,39 +87,53 @@ export default function ScannerCard() {
     if (!user) return
 
     try {
-      const { data, error } = await (supabase.rpc as any)('fn_qr_scan_and_debt', {
-        qr_token: token.trim(),
-        source: 'web_scan',
-        scanned_by: user.id,
-        rate_limit_seconds: 30,
-      })
+      console.log('🔍 QR Code detected:', normalizedToken)
 
-      if (error) throw error
+      const { data: studentRow, error: studentError } = await supabase
+        .from('students')
+        .select('id, code, nombres, apellidos, photo_url')
+        .eq('code', normalizedToken)
+        .is('deleted_at', null)
+        .single()
 
-      const result: any = Array.isArray(data) ? data[0] : data
-      if (!result) throw new Error('Sin resultado')
-
-      if (result.out_rate_limited) {
-        setStatus('rate_limited')
-        setErrorMsg('Escaneo reciente. Espera 30 segundos.')
-        return
+      if (studentError || !studentRow) {
+        throw new Error(studentError?.message ?? 'Alumno no encontrado con este código QR.')
       }
 
+      const { data: debtSummary, error: debtError } = await supabase
+        .from('student_debt_summary')
+        .select('debt_amount, debt_status')
+        .eq('student_id', studentRow.id)
+        .maybeSingle()
+
+      if (debtError) {
+        throw new Error(debtError.message)
+      }
+
+      const debtAmount = Number((debtSummary as any)?.debt_amount) || 0
+      const debtStatus = ((debtSummary as any)?.debt_status as string | undefined) ?? (debtAmount > 0 ? 'debe' : 'al_dia')
+      const debtMessage = debtAmount > 0 ? 'Deuda pendiente detectada' : 'Alumno al día'
+      const scannedAt = new Date().toISOString()
+
+      console.log('📊 Student found:', studentRow)
+      console.log('💰 Total due:', debtAmount)
+
       setStudent({
-        student_id: result.out_student_id,
-        student_code: result.out_student_code,
-        nombres: result.out_nombres,
-        apellidos: result.out_apellidos,
-        photo_url: result.out_photo_url,
-        debt_status: result.out_debt_status,
-        debt_amount: result.out_debt_amount,
-        debt_message: result.out_debt_message,
-        scanned_at: result.out_scanned_at,
+        student_id: studentRow.id as string,
+        student_code: (studentRow.code as string | null) ?? normalizedToken,
+        nombres: (studentRow.nombres as string | null) ?? '',
+        apellidos: (studentRow.apellidos as string | null) ?? '',
+        photo_url: (studentRow.photo_url as string | null) ?? null,
+        debt_status: debtStatus,
+        debt_amount: debtAmount,
+        debt_message: debtMessage,
+        scanned_at: scannedAt,
       })
       setStatus('success')
-    } catch {
+    } catch (error) {
+      console.error('QR scan failed:', error)
       setStatus('error')
-      setErrorMsg('Código QR no válido o alumno no encontrado.')
+      setErrorMsg(error instanceof Error ? error.message : 'Código QR no válido o alumno no encontrado.')
     }
   }
 
