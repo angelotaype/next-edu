@@ -81,24 +81,7 @@ export async function createQuickPayment(input: QuickPaymentInput) {
     throw new Error('El alumno no tiene matrículas asociadas.')
   }
 
-  const { data: installments, error: installmentsError } = await db
-    .from('installments')
-    .select('*')
-    .in('enrollment_id', enrollmentIds)
-    .neq('status', 'pagado')
-    .order('due_date', { ascending: true })
-
-  if (installmentsError) {
-    throw new Error(installmentsError.message)
-  }
-
-  const installmentRows = (installments ?? []) as any[]
-  if (installmentRows.length === 0) {
-    throw new Error('El alumno no tiene cuotas pendientes.')
-  }
-
-  const firstInstallment = installmentRows[0]
-  const baseEnrollment = enrollmentRows.find((row) => row.id === firstInstallment.enrollment_id) ?? enrollmentRows[0]
+  const baseEnrollment = enrollmentRows[0] ?? null
 
   let paymentPlanId =
     (baseEnrollment?.payment_plan_id as string | null | undefined)
@@ -109,7 +92,7 @@ export async function createQuickPayment(input: QuickPaymentInput) {
     const { data: fallbackPlan, error: fallbackPlanError } = await db
       .from('payment_plans')
       .select('id')
-      .eq('school_id', schoolId)
+      .eq('student_id', parsed.studentId)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -151,13 +134,15 @@ export async function createQuickPayment(input: QuickPaymentInput) {
     throw new Error(paymentError.message)
   }
 
-  const { error: applyError } = await db.rpc('fn_apply_payment_to_oldest_installments', {
-    payment_id: payment.id,
+  const { data: applyResult, error: applyError } = await db.rpc('fn_apply_payment_to_oldest_installments', {
+    p_payment_id: payment.id,
   })
 
   if (applyError) {
     throw new Error(applyError.message)
   }
+
+  const creditRemaining = Number((applyResult as { credit_remaining?: number | string } | null)?.credit_remaining) || 0
 
   return {
     paymentId: payment.id as string,
@@ -166,5 +151,6 @@ export async function createQuickPayment(input: QuickPaymentInput) {
     paidAt: (payment.paid_at as string | null) ?? paidAt,
     method: (payment.method as string | null) ?? parsed.method,
     studentName: `${(student.apellidos as string | null) ?? ''}, ${(student.nombres as string | null) ?? ''}`.trim().replace(/^,\s*/, ''),
+    creditRemaining,
   }
 }
