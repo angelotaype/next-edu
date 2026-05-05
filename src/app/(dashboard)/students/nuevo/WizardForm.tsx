@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { z } from 'zod'
+import { CreateStudentSchema, type CreateStudentInput } from '@/lib/schemas'
 import { createClient } from '@/lib/supabase/client'
 import { createStudentWithPayment } from './actions'
 
@@ -17,28 +17,7 @@ const PLAN_TEMPLATES = [
   { id: '3m', name: '3 cuotas', installments: 3, amount: 240 },
 ] as const
 
-const wizardSchema = z.object({
-  name: z.string().trim().min(3, 'Ingresa al menos 3 caracteres.').max(120, 'Máximo 120 caracteres.'),
-  email: z.string().trim().email('Correo inválido.').nullable(),
-  phone: z.string().trim().max(30, 'Máximo 30 caracteres.').nullable(),
-  dni: z.string().trim().max(30, 'Máximo 30 caracteres.').nullable(),
-  cycle_id: z.string().uuid('Selecciona un ciclo válido.'),
-  classroom_id: z.string().uuid('Selecciona un salón válido.'),
-  selectedPlan: z.object({
-    templateId: z.string().min(1, 'Selecciona un tipo de plan.'),
-    installments: z.number().int().min(1, 'Plan inválido.'),
-    monthlyAmount: z.number().min(0.01, 'Plan inválido.'),
-    totalAmount: z.number().min(0.01, 'Plan inválido.'),
-  }),
-  payment_frequency: z.enum(['monthly', 'quarterly', 'yearly']),
-  primerPago: z.object({
-    monto: z.number().min(0.01, 'Ingresa un monto mayor a 0.'),
-    metodo: z.enum(['efectivo', 'yape', 'plin', 'transferencia']),
-    referencia: z.string().max(50, 'Máximo 50 caracteres.').optional(),
-  }),
-})
-
-type WizardValues = z.infer<typeof wizardSchema>
+type WizardValues = CreateStudentInput
 
 interface CycleOption {
   id: string
@@ -59,7 +38,7 @@ interface WizardFormProps {
 }
 
 const STEPS = [
-  { number: 1, label: 'Datos', fields: ['name', 'email', 'phone', 'dni'] as const },
+  { number: 1, label: 'Datos', fields: ['nombres', 'apellidos', 'dni', 'fecha_nacimiento', 'telefono', 'email', 'direccion', 'apoderado_nombre', 'apoderado_telefono', 'apoderado_email', 'observaciones'] as const },
   { number: 2, label: 'Ciclo', fields: ['cycle_id'] as const },
   { number: 3, label: 'Salón', fields: ['classroom_id'] as const },
   { number: 4, label: 'Plan', fields: ['selectedPlan.templateId', 'selectedPlan.installments', 'selectedPlan.monthlyAmount', 'selectedPlan.totalAmount', 'payment_frequency'] as const },
@@ -126,12 +105,19 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
     reset,
     formState: { errors },
   } = useForm<WizardValues>({
-    resolver: zodResolver(wizardSchema),
+    resolver: zodResolver(CreateStudentSchema),
     defaultValues: {
-      name: '',
+      nombres: '',
+      apellidos: '',
+      fecha_nacimiento: null,
+      telefono: null,
       email: null,
-      phone: null,
       dni: null,
+      direccion: null,
+      apoderado_nombre: null,
+      apoderado_telefono: null,
+      apoderado_email: null,
+      observaciones: null,
       cycle_id: '',
       classroom_id: '',
       selectedPlan: {
@@ -333,61 +319,163 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
       <form onSubmit={onSubmit} className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm md:p-6">
         <fieldset disabled={isLoading} className="contents">
         {currentStep === 1 && (
-          <div className="grid gap-5 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <label htmlFor="name" className="mb-1.5 block text-sm font-medium text-gray-700">
-                Nombre completo
-              </label>
-              <input
-                id="name"
-                type="text"
-                placeholder="Ej. Juan Pérez"
-                className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                {...register('name')}
-              />
-              {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
+          <div className="space-y-6">
+            <div className="border-b border-gray-100 pb-5">
+              <h3 className="mb-4 text-base font-semibold text-gray-900">Datos del alumno</h3>
+              <div className="grid gap-5 md:grid-cols-2">
+                <div>
+                  <label htmlFor="nombres" className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Nombres
+                  </label>
+                  <input
+                    id="nombres"
+                    type="text"
+                    className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    {...register('nombres')}
+                  />
+                  {errors.nombres && <p className="mt-1 text-xs text-red-600">{errors.nombres.message}</p>}
+                </div>
+
+                <div>
+                  <label htmlFor="apellidos" className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Apellidos
+                  </label>
+                  <input
+                    id="apellidos"
+                    type="text"
+                    className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    {...register('apellidos')}
+                  />
+                  {errors.apellidos && <p className="mt-1 text-xs text-red-600">{errors.apellidos.message}</p>}
+                </div>
+
+                <div>
+                  <label htmlFor="dni" className="mb-1.5 block text-sm font-medium text-gray-700">
+                    DNI
+                  </label>
+                  <input
+                    id="dni"
+                    type="text"
+                    placeholder="Opcional"
+                    className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    {...register('dni', { setValueAs: (value) => value?.trim() ? value.trim() : null })}
+                  />
+                  {errors.dni && <p className="mt-1 text-xs text-red-600">{errors.dni.message}</p>}
+                </div>
+
+                <div>
+                  <label htmlFor="fecha_nacimiento" className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Fecha de nacimiento
+                  </label>
+                  <input
+                    id="fecha_nacimiento"
+                    type="date"
+                    className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    {...register('fecha_nacimiento', { setValueAs: (value) => value || null })}
+                  />
+                  {errors.fecha_nacimiento && <p className="mt-1 text-xs text-red-600">{errors.fecha_nacimiento.message}</p>}
+                </div>
+
+                <div>
+                  <label htmlFor="telefono" className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Teléfono
+                  </label>
+                  <input
+                    id="telefono"
+                    type="text"
+                    placeholder="Opcional"
+                    className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    {...register('telefono', { setValueAs: (value) => value?.trim() ? value.trim() : null })}
+                  />
+                  {errors.telefono && <p className="mt-1 text-xs text-red-600">{errors.telefono.message}</p>}
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Correo electrónico
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    placeholder="Opcional"
+                    className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    {...register('email', { setValueAs: (value) => value?.trim() ? value.trim() : null })}
+                  />
+                  {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
+                </div>
+
+                <div className="md:col-span-2">
+                  <label htmlFor="direccion" className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Dirección
+                  </label>
+                  <input
+                    id="direccion"
+                    type="text"
+                    placeholder="Opcional"
+                    className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    {...register('direccion', { setValueAs: (value) => value?.trim() ? value.trim() : null })}
+                  />
+                  {errors.direccion && <p className="mt-1 text-xs text-red-600">{errors.direccion.message}</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="border-b border-gray-100 pb-5">
+              <h3 className="mb-4 text-base font-semibold text-gray-900">Datos del apoderado</h3>
+              <div className="grid gap-5 md:grid-cols-2">
+                <div>
+                  <label htmlFor="apoderado_nombre" className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Nombre completo
+                  </label>
+                  <input
+                    id="apoderado_nombre"
+                    type="text"
+                    placeholder="Opcional"
+                    className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    {...register('apoderado_nombre', { setValueAs: (value) => value?.trim() ? value.trim() : null })}
+                  />
+                  {errors.apoderado_nombre && <p className="mt-1 text-xs text-red-600">{errors.apoderado_nombre.message}</p>}
+                </div>
+
+                <div>
+                  <label htmlFor="apoderado_telefono" className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Teléfono
+                  </label>
+                  <input
+                    id="apoderado_telefono"
+                    type="text"
+                    placeholder="Opcional"
+                    className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    {...register('apoderado_telefono', { setValueAs: (value) => value?.trim() ? value.trim() : null })}
+                  />
+                  {errors.apoderado_telefono && <p className="mt-1 text-xs text-red-600">{errors.apoderado_telefono.message}</p>}
+                </div>
+
+                <div className="md:col-span-2">
+                  <label htmlFor="apoderado_email" className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Correo electrónico
+                  </label>
+                  <input
+                    id="apoderado_email"
+                    type="email"
+                    placeholder="Opcional"
+                    className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    {...register('apoderado_email', { setValueAs: (value) => value?.trim() ? value.trim() : null })}
+                  />
+                  {errors.apoderado_email && <p className="mt-1 text-xs text-red-600">{errors.apoderado_email.message}</p>}
+                </div>
+              </div>
             </div>
 
             <div>
-              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
-                Correo electrónico
-              </label>
-              <input
-                id="email"
-                type="email"
-                placeholder="Opcional"
-                className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                {...register('email', { setValueAs: (value) => value?.trim() ? value.trim() : null })}
+              <h3 className="mb-4 text-base font-semibold text-gray-900">Observaciones</h3>
+              <textarea
+                rows={3}
+                placeholder="Alergias, condiciones médicas, notas..."
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                {...register('observaciones', { setValueAs: (value) => value?.trim() ? value.trim() : null })}
               />
-              {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="phone" className="mb-1.5 block text-sm font-medium text-gray-700">
-                Teléfono
-              </label>
-              <input
-                id="phone"
-                type="text"
-                placeholder="Opcional"
-                className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                {...register('phone', { setValueAs: (value) => value?.trim() ? value.trim() : null })}
-              />
-              {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>}
-            </div>
-
-            <div className="md:col-span-2">
-              <label htmlFor="dni" className="mb-1.5 block text-sm font-medium text-gray-700">
-                DNI
-              </label>
-              <input
-                id="dni"
-                type="text"
-                placeholder="Opcional"
-                className="min-h-12 w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                {...register('dni', { setValueAs: (value) => value?.trim() ? value.trim() : null })}
-              />
-              {errors.dni && <p className="mt-1 text-xs text-red-600">{errors.dni.message}</p>}
+              {errors.observaciones && <p className="mt-1 text-xs text-red-600">{errors.observaciones.message}</p>}
             </div>
           </div>
         )}
@@ -512,7 +600,9 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Resumen</p>
               <div className="mt-4 space-y-4">
                 <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                  <p className="text-sm font-semibold text-gray-900">{watch('name') || 'Alumno sin nombre'}</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {[watch('nombres'), watch('apellidos')].filter(Boolean).join(' ') || 'Alumno sin nombre'}
+                  </p>
                   <p className="mt-1 text-sm text-gray-500">
                     {selectedCycle?.name ?? 'Sin ciclo'} | {selectedClassroom?.name ?? 'Sin salón'}
                   </p>

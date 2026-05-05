@@ -46,19 +46,18 @@ function getFrequencyInterval(frequency: CreateStudentWithPaymentInput['payment_
   }
 }
 
-function splitStudentName(fullName: string) {
-  const trimmed = fullName.trim()
-  const parts = trimmed.split(/\s+/)
+async function getStudentColumnSet(db: any) {
+  const { data, error } = await db
+    .from('students')
+    .select('*')
+    .limit(1)
+    .maybeSingle()
 
-  if (parts.length === 0 || !trimmed) return { nombres: '', apellidos: '' }
-  if (parts.length === 1) {
-    return { nombres: parts[0], apellidos: '' }
+  if (error) {
+    throw new Error(`StudentsSchema: ${error.message}`)
   }
 
-  return {
-    nombres: parts[0],
-    apellidos: parts.slice(1).join(' '),
-  }
+  return new Set(Object.keys((data as Record<string, unknown> | null) ?? {}))
 }
 
 export async function createStudentWithPayment(input: CreateStudentWithPaymentInput) {
@@ -85,21 +84,31 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
   if (profileError || !schoolId) {
     throw new Error('No se pudo resolver el colegio actual.')
   }
-  const { nombres, apellidos } = splitStudentName(parsed.name)
+  const studentColumns = await getStudentColumnSet(db)
   const studentCode = buildStudentCode(schoolId, parsed.dni || 'UNKNOWN')
 
-  const studentPayload = {
+  const studentPayload: Record<string, unknown> = {
     school_id: schoolId,
     code: studentCode,
-    nombres,
-    apellidos,
+    nombres: parsed.nombres,
+    apellidos: parsed.apellidos,
     dni: parsed.dni,
     email: parsed.email,
-    phone: parsed.phone,
     cycle_id: parsed.cycle_id,
     classroom_id: parsed.classroom_id,
     estado_matricula: 'activo',
   }
+
+  if (studentColumns.has('estado')) studentPayload.estado = 'activo'
+  if (studentColumns.has('created_by')) studentPayload.created_by = user.id
+  if (studentColumns.has('phone')) studentPayload.phone = parsed.telefono
+  if (studentColumns.has('telefono')) studentPayload.telefono = parsed.telefono
+  if (studentColumns.has('fecha_nacimiento')) studentPayload.fecha_nacimiento = parsed.fecha_nacimiento
+  if (studentColumns.has('direccion')) studentPayload.direccion = parsed.direccion
+  if (studentColumns.has('apoderado_nombre')) studentPayload.apoderado_nombre = parsed.apoderado_nombre
+  if (studentColumns.has('apoderado_telefono')) studentPayload.apoderado_telefono = parsed.apoderado_telefono
+  if (studentColumns.has('apoderado_email')) studentPayload.apoderado_email = parsed.apoderado_email
+  if (studentColumns.has('observaciones')) studentPayload.observaciones = parsed.observaciones
 
   let studentInsert = await db
     .from('students')
@@ -108,9 +117,10 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
     .single()
 
   if (studentInsert.error && String(studentInsert.error.message).toLowerCase().includes('email')) {
-    const { email, phone, ...fallbackPayload } = studentPayload
+    const { email, phone, telefono, ...fallbackPayload } = studentPayload
     void email
     void phone
+    void telefono
     studentInsert = await db
       .from('students')
       .insert(fallbackPayload)
