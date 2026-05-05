@@ -5,11 +5,13 @@ import { QRCodeSVG } from 'qrcode.react'
 export default function CarnetTab({
   studentName,
   studentCode,
+  qrValue,
 }: {
   studentName: string
   studentCode: string | null
+  qrValue: string | null
 }) {
-  if (!studentCode) {
+  if (!studentCode || !qrValue) {
     return (
       <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-10 text-center">
         <p className="text-sm font-medium text-gray-900">Este estudiante aún no tiene código asignado.</p>
@@ -36,7 +38,7 @@ export default function CarnetTab({
 
       <div className="flex items-center justify-center rounded-3xl border border-blue-100 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] p-6 shadow-sm">
         <div className="rounded-3xl border border-white bg-white p-5 shadow-[0_24px_60px_-32px_rgba(37,99,235,0.45)]">
-          <QRCodeSVG value={studentCode} size={220} bgColor="#FFFFFF" fgColor="#0F172A" includeMargin />
+          <QRCodeSVG value={qrValue} size={220} bgColor="#FFFFFF" fgColor="#0F172A" includeMargin />
         </div>
       </div>
     </div>

@@ -18,6 +18,7 @@ export interface StudentDetail {
   telefono: string | null
   email: string | null
   direccion: string | null
+  qrToken: string | null
   apoderadoNombre: string | null
   apoderadoTelefono: string | null
   apoderadoEmail: string | null
@@ -139,7 +140,7 @@ export default function StudentTabs({ student, installments, attendances, initia
       </Tabs.Content>
 
       <Tabs.Content value="card" className="outline-none">
-        <CarnetTab studentName={student.fullName} studentCode={student.code} />
+        <CarnetTab studentName={student.fullName} studentCode={student.code} qrValue={student.qrToken ?? student.code} />
       </Tabs.Content>
     </Tabs.Root>
   )

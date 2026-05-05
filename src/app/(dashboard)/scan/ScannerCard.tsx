@@ -10,31 +10,34 @@ type ScanStatus = 'idle' | 'scanning' | 'success' | 'error' | 'rate_limited'
 
 interface StudentResult {
   student_id: string
+  school_id: string
+  qr_token: string | null
   student_code: string
   nombres: string
   apellidos: string
   photo_url: string | null
-  debt_status: string
-  debt_amount: number
-  debt_message: string
-  scanned_at: string
+  telefono: string | null
+  payment_status: string
+  total_debt: number
+  overdue_debt: number
+  next_due_date: string | null
+  next_installment_amount: number
+  pending_installments: number
+  last_scanned_at: string | null
 }
 
-const DEBT_BADGE: Record<string, { label: string; className: string }> = {
-  al_dia: { label: 'AL DÍA', className: 'bg-green-500 text-white' },
-  debe: { label: 'DEBE', className: 'bg-red-500 text-white' },
-  vencido: { label: 'VENCIDO', className: 'bg-red-700 text-white' },
-  parcial: { label: 'PARCIAL', className: 'bg-blue-500 text-white' },
-  pendiente: { label: 'PENDIENTE', className: 'bg-yellow-500 text-white' },
+const PAYMENT_STATUS_STYLES: Record<string, string> = {
+  'Al día': 'bg-green-100 border-2 border-green-500 text-green-900',
+  'En riesgo': 'bg-red-100 border-2 border-red-500 text-red-900',
+  'Debe pagar': 'bg-yellow-100 border-2 border-yellow-500 text-yellow-900',
 }
 
 function formatSoles(n: number) {
   return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(n)
 }
 
-function hasOverdueDebt(student: StudentResult | null) {
-  if (!student) return false
-  return student.debt_amount > 0 && ['debe', 'vencido', 'pendiente', 'parcial'].includes(student.debt_status)
+function hasDebt(student: StudentResult | null) {
+  return Boolean(student && student.total_debt > 0)
 }
 
 export default function ScannerCard() {
@@ -72,7 +75,22 @@ export default function ScannerCard() {
     streamRef.current = null
   }
 
-async function processQRToken(token: string) {
+  async function logQrAction(student: StudentResult, action: string, notes?: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from('attendance_qr_log').insert({
+      school_id: student.school_id,
+      student_id: student.student_id,
+      qr_token: student.qr_token ?? student.student_code,
+      action,
+      notes: notes ?? null,
+    })
+
+    if (error) {
+      console.error('attendance_qr_log insert failed:', error)
+    }
+  }
+
+  async function processQRToken(token: string) {
     const normalizedToken = token.trim()
     if (!normalizedToken) return
     setStatus('scanning')
@@ -87,56 +105,49 @@ async function processQRToken(token: string) {
     if (!user) return
 
     try {
-      console.log('🔍 QR Code detected:', normalizedToken)
-
-      const { data: studentRowRaw, error: studentError } = await supabase
-        .from('students')
-        .select('id, code, nombres, apellidos, photo_url')
-        .eq('code', normalizedToken)
-        .is('deleted_at', null)
-        .single()
-
-      const studentRow = studentRowRaw as {
-        id: string
-        code: string | null
-        nombres: string | null
-        apellidos: string | null
-        photo_url: string | null
-      } | null
-
-      if (studentError || !studentRow) {
-        throw new Error(studentError?.message ?? 'Alumno no encontrado con este código QR.')
-      }
-
-      const { data: debtSummary, error: debtError } = await supabase
-        .from('student_debt_summary')
-        .select('debt_amount, debt_status')
-        .eq('student_id', studentRow.id)
+      let studentQuery = await supabase
+        .from('student_qr_status')
+        .select('*')
+        .eq('qr_token', normalizedToken)
         .maybeSingle()
 
-      if (debtError) {
-        throw new Error(debtError.message)
+      if (studentQuery.error && !String(studentQuery.error.message).toLowerCase().includes('no rows')) {
+        console.error('student_qr_status qr_token lookup failed:', studentQuery.error)
       }
 
-      const debtAmount = Number((debtSummary as any)?.debt_amount) || 0
-      const debtStatus = ((debtSummary as any)?.debt_status as string | undefined) ?? (debtAmount > 0 ? 'debe' : 'al_dia')
-      const debtMessage = debtAmount > 0 ? 'Deuda pendiente detectada' : 'Alumno al día'
-      const scannedAt = new Date().toISOString()
+      if (!studentQuery.data) {
+        studentQuery = await supabase
+          .from('student_qr_status')
+          .select('*')
+          .eq('code', normalizedToken)
+          .maybeSingle()
+      }
 
-      console.log('📊 Student found:', studentRow)
-      console.log('💰 Total due:', debtAmount)
+      if (studentQuery.error || !studentQuery.data) {
+        throw new Error('❌ Alumno no encontrado. Verifica el código QR.')
+      }
 
-      setStudent({
+      const studentRow = studentQuery.data as any
+      const scannedStudent: StudentResult = {
         student_id: studentRow.id as string,
+        school_id: studentRow.school_id as string,
+        qr_token: (studentRow.qr_token as string | null) ?? null,
         student_code: (studentRow.code as string | null) ?? normalizedToken,
         nombres: (studentRow.nombres as string | null) ?? '',
         apellidos: (studentRow.apellidos as string | null) ?? '',
         photo_url: (studentRow.photo_url as string | null) ?? null,
-        debt_status: debtStatus,
-        debt_amount: debtAmount,
-        debt_message: debtMessage,
-        scanned_at: scannedAt,
-      })
+        telefono: (studentRow.telefono as string | null) ?? null,
+        payment_status: (studentRow.payment_status as string | null) ?? 'Al día',
+        total_debt: Number(studentRow.total_debt) || 0,
+        overdue_debt: Number(studentRow.overdue_debt) || 0,
+        next_due_date: (studentRow.next_due_date as string | null) ?? null,
+        next_installment_amount: Number(studentRow.next_installment_amount) || 0,
+        pending_installments: Number(studentRow.pending_installments) || 0,
+        last_scanned_at: (studentRow.last_scanned_at as string | null) ?? null,
+      }
+
+      await logQrAction(scannedStudent, 'detected', 'QR scanned - awaiting action selection')
+      setStudent(scannedStudent)
       setStatus('success')
     } catch (error) {
       console.error('QR scan failed:', error)
@@ -158,16 +169,31 @@ async function processQRToken(token: string) {
     setPaymentOpen(false)
   }
 
-  function handleAttendance() {
+  async function handleAttendance() {
+    if (!student) return
+
+    const supabase = createClient()
+    const scannedAt = new Date().toISOString()
+
+    const { error } = await supabase.from('attendance_logs').insert({
+      school_id: student.school_id,
+      student_id: student.student_id,
+      scanned_at: scannedAt,
+    })
+
+    if (error) {
+      toast.error('No se pudo registrar la asistencia', {
+        description: error.message,
+      })
+      return
+    }
+
+    await logQrAction(student, 'attendance', 'Attendance marked from QR scanner')
     toast.success('Asistencia registrada', {
       description: 'Puedes continuar con el siguiente alumno.',
     })
     handleReset()
   }
-
-  const badge = student
-    ? (DEBT_BADGE[student.debt_status] ?? { label: student.debt_status.toUpperCase(), className: 'bg-gray-500 text-white' })
-    : null
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -260,20 +286,14 @@ async function processQRToken(token: string) {
                 {student.apellidos}, {student.nombres}
               </p>
               <p className="font-mono text-sm text-gray-500">{student.student_code}</p>
-              {student.debt_amount > 0 ? (
+              {student.total_debt > 0 ? (
                 <p className="mt-0.5 text-sm font-medium text-red-600">
-                  {student.debt_message} — {formatSoles(student.debt_amount)}
+                  {student.payment_status} — {formatSoles(student.total_debt)}
                 </p>
               ) : (
                 <p className="mt-0.5 text-sm text-green-600">Sin deuda pendiente.</p>
               )}
             </div>
-
-            {badge && (
-              <span className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-bold tracking-wide ${badge.className}`}>
-                {badge.label}
-              </span>
-            )}
           </div>
 
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -285,7 +305,7 @@ async function processQRToken(token: string) {
               Registrar asistencia
             </button>
 
-            {hasOverdueDebt(student) && (
+            {hasDebt(student) && (
               <button
                 type="button"
                 onClick={() => setPaymentOpen(true)}
@@ -298,11 +318,79 @@ async function processQRToken(token: string) {
 
           <div className="mt-3 flex flex-col gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-gray-400">
-              Escaneado: {new Date(student.scanned_at).toLocaleTimeString('es-PE')}
+              Último escaneo: {student.last_scanned_at ? new Date(student.last_scanned_at).toLocaleTimeString('es-PE') : 'Ahora'}
             </p>
             <Link href={`/students/${student.student_id}`} className="text-xs font-medium text-blue-600 hover:underline">
               Ver perfil →
             </Link>
+          </div>
+        </div>
+      )}
+
+      {student && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            {student.photo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={student.photo_url}
+                alt={student.nombres}
+                className="mx-auto mb-4 h-24 w-24 rounded-full object-cover"
+              />
+            ) : null}
+
+            <h2 className="text-center text-2xl font-bold text-gray-900">
+              {student.nombres} {student.apellidos}
+            </h2>
+            <p className="mb-4 text-center text-gray-600">{student.student_code}</p>
+
+            <div className={`mb-4 rounded-lg p-4 text-center ${PAYMENT_STATUS_STYLES[student.payment_status] ?? 'bg-slate-100 border-2 border-slate-300 text-slate-900'}`}>
+              <p className="text-sm text-gray-600">Estado de pago</p>
+              <p className="text-xl font-bold">{student.payment_status}</p>
+              {student.total_debt > 0 && (
+                <p className="text-lg font-semibold">Debe: {formatSoles(student.total_debt)}</p>
+              )}
+              {student.overdue_debt > 0 && (
+                <p className="text-sm font-bold text-red-600">VENCIDO: {formatSoles(student.overdue_debt)}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={handleAttendance}
+                className="rounded-lg bg-blue-600 py-3 font-bold text-white transition hover:bg-blue-700"
+              >
+                Asistencia
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentOpen(true)}
+                disabled={!hasDebt(student)}
+                className={`rounded-lg py-3 font-bold text-white transition ${
+                  hasDebt(student) ? 'bg-green-600 hover:bg-green-700' : 'cursor-not-allowed bg-gray-400'
+                }`}
+              >
+                {hasDebt(student) ? 'Pagar' : 'Sin deuda'}
+              </button>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <Link
+                href={`/students/${student.student_id}`}
+                className="inline-flex items-center justify-center rounded-lg border border-gray-200 py-3 font-semibold text-gray-700 transition hover:border-blue-200 hover:text-blue-700"
+              >
+                Ver perfil
+              </Link>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="rounded-lg py-3 text-gray-600 transition hover:text-gray-800"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -333,12 +421,20 @@ async function processQRToken(token: string) {
             ? {
                 id: student.student_id,
                 fullName: `${student.apellidos}, ${student.nombres}`.trim().replace(/^,\s*/, ''),
-                debtAmount: student.debt_amount,
-                overdueAmount: student.debt_amount,
+                debtAmount: student.total_debt,
+                overdueAmount: student.overdue_debt,
+                pendingInstallments: student.pending_installments,
+                nextInstallmentAmount: student.next_installment_amount,
+                paymentStatus: student.payment_status,
               }
             : null
         }
-        onPaid={handleReset}
+        onPaid={async () => {
+          if (student) {
+            await logQrAction(student, 'payment', 'Quick payment registered from QR scanner')
+          }
+          handleReset()
+        }}
       />
     </div>
   )

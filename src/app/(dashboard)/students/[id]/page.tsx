@@ -110,6 +110,7 @@ async function getStudentData(studentId: string): Promise<{
       telefono: ((studentRaw.telefono as string | null | undefined) ?? (studentRaw.phone as string | null | undefined)) ?? null,
       email: (studentRaw.email as string | null) ?? null,
       direccion: (studentRaw.direccion as string | null) ?? null,
+      qrToken: (studentRaw.qr_token as string | null) ?? null,
       apoderadoNombre: (studentRaw.apoderado_nombre as string | null) ?? null,
       apoderadoTelefono: (studentRaw.apoderado_telefono as string | null) ?? null,
       apoderadoEmail: (studentRaw.apoderado_email as string | null) ?? null,
