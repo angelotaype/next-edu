@@ -1,11 +1,13 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { createClient } from '@/lib/supabase/client'
 import { createStudentWithPayment } from './actions'
 
 const STORAGE_KEY = 'next-edu:student-wizard'
@@ -111,6 +113,8 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
   const [currentStep, setCurrentStep] = useState(1)
   const [isPending, startTransition] = useTransition()
   const isLoading = isPending
+  const [availableClassrooms, setAvailableClassrooms] = useState<ClassroomOption[]>([])
+  const [isLoadingClassrooms, setIsLoadingClassrooms] = useState(false)
 
   const {
     register,
@@ -150,11 +154,6 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
   const selectedClassroomId = watch('classroom_id')
   const primerPagoMonto = watch('primerPago.monto')
 
-  const availableClassrooms = useMemo(
-    () => classrooms.filter((classroom) => classroom.cycle_id === selectedCycleId),
-    [classrooms, selectedCycleId]
-  )
-
   const selectedPlan = useMemo(() => {
     const template = PLAN_TEMPLATES.find((plan) => plan.id === selectedPlanTemplateId)
     if (!template) return null
@@ -172,8 +171,8 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
     [cycles, selectedCycleId]
   )
   const selectedClassroom = useMemo(
-    () => classrooms.find((classroom) => classroom.id === selectedClassroomId) ?? null,
-    [classrooms, selectedClassroomId]
+    () => availableClassrooms.find((classroom) => classroom.id === selectedClassroomId) ?? classrooms.find((classroom) => classroom.id === selectedClassroomId) ?? null,
+    [availableClassrooms, classrooms, selectedClassroomId]
   )
 
   useEffect(() => {
@@ -211,6 +210,54 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
 
     return () => subscription.unsubscribe()
   }, [currentStep, watch])
+
+  useEffect(() => {
+    if (!selectedCycleId) {
+      setAvailableClassrooms([])
+      setIsLoadingClassrooms(false)
+      return
+    }
+
+    let isCancelled = false
+    const supabase = createClient()
+
+    async function fetchClassrooms() {
+      setIsLoadingClassrooms(true)
+
+      const { data, error } = await supabase
+        .from('classrooms')
+        .select('id, name, cycle_id, tipo, nivel')
+        .eq('cycle_id', selectedCycleId)
+        .is('deleted_at', null)
+        .order('name', { ascending: true })
+
+      if (isCancelled) return
+
+      if (error) {
+        setAvailableClassrooms([])
+        toast.error('No se pudieron cargar los salones', {
+          description: error.message,
+        })
+        setIsLoadingClassrooms(false)
+        return
+      }
+
+      setAvailableClassrooms(((data ?? []) as any[]).map((classroom) => ({
+        id: classroom.id as string,
+        name: (classroom.name as string) ?? 'Sin nombre',
+        cycle_id: classroom.cycle_id as string,
+        tipo: (classroom.tipo as string | null) ?? null,
+        nivel: (classroom.nivel as string | null) ?? null,
+      })))
+      setIsLoadingClassrooms(false)
+    }
+
+    void fetchClassrooms()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [selectedCycleId])
 
   useEffect(() => {
     const selectedClassroomId = getValues('classroom_id')
@@ -373,9 +420,13 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
               id="classroom_id"
               className="min-h-12 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
               {...register('classroom_id')}
-              disabled={!selectedCycleId}
+              disabled={!selectedCycleId || isLoadingClassrooms}
             >
               <option value="">{selectedCycleId ? 'Selecciona un salón' : 'Primero selecciona un ciclo'}</option>
+              {isLoadingClassrooms && <option disabled>Cargando salones...</option>}
+              {!isLoadingClassrooms && selectedCycleId && availableClassrooms.length === 0 && (
+                <option disabled>No hay salones en este ciclo</option>
+              )}
               {availableClassrooms.map((classroom) => (
                 <option key={classroom.id} value={classroom.id}>
                   {classroom.name} {classroom.tipo ? `· ${classroom.tipo}` : ''} {classroom.nivel ? `· ${classroom.nivel}` : ''}
@@ -383,6 +434,14 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
               ))}
             </select>
             {errors.classroom_id && <p className="mt-1 text-xs text-red-600">{errors.classroom_id.message}</p>}
+            {!isLoadingClassrooms && selectedCycleId && availableClassrooms.length === 0 && (
+              <p className="mt-3 text-sm text-gray-500">
+                No hay salones para este ciclo.{' '}
+                <Link href="/salones" className="font-medium text-blue-600 hover:underline">
+                  Crear salón
+                </Link>
+              </p>
+            )}
           </div>
         )}
 
