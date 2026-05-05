@@ -30,7 +30,7 @@ async function getStudentData(studentId: string): Promise<{
       studentRes = await db
         .from('students')
         .select(`
-          id, code, nombres, apellidos, estado, dni,
+          *, 
           cycle_id, classroom_id, estado_matricula,
           cycles!cycle_id(id, name),
           classrooms!classroom_id(id, name)
@@ -105,6 +105,15 @@ async function getStudentData(studentId: string): Promise<{
       cycleName: cycles?.name ?? null,
       classroomName: classrooms?.name ?? null,
       status: (studentRaw.estado_matricula as string | null) ?? null,
+      dni: (studentRaw.dni as string | null) ?? null,
+      fechaNacimiento: (studentRaw.fecha_nacimiento as string | null) ?? null,
+      telefono: ((studentRaw.telefono as string | null | undefined) ?? (studentRaw.phone as string | null | undefined)) ?? null,
+      email: (studentRaw.email as string | null) ?? null,
+      direccion: (studentRaw.direccion as string | null) ?? null,
+      apoderadoNombre: (studentRaw.apoderado_nombre as string | null) ?? null,
+      apoderadoTelefono: (studentRaw.apoderado_telefono as string | null) ?? null,
+      apoderadoEmail: (studentRaw.apoderado_email as string | null) ?? null,
+      observaciones: (studentRaw.observaciones as string | null) ?? null,
     }
 
     const installments: InstallmentRow[] = ((installmentsRes.data ?? []) as any[]).map((row) => ({

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import * as Tabs from '@radix-ui/react-tabs'
 import PaymentsTab, { type InstallmentRow } from './PaymentsTab'
 import AttendanceTab, { type AttendanceRow } from './AttendanceTab'
@@ -12,6 +13,15 @@ export interface StudentDetail {
   cycleName: string | null
   classroomName: string | null
   status: string | null
+  dni: string | null
+  fechaNacimiento: string | null
+  telefono: string | null
+  email: string | null
+  direccion: string | null
+  apoderadoNombre: string | null
+  apoderadoTelefono: string | null
+  apoderadoEmail: string | null
+  observaciones: string | null
 }
 
 interface StudentTabsProps {
@@ -36,8 +46,17 @@ function InfoGrid({ student }: { student: StudentDetail }) {
   const items = [
     { label: 'Nombre', value: student.fullName },
     { label: 'Código', value: student.code ?? '—' },
+    { label: 'DNI', value: student.dni ?? '—' },
+    { label: 'Fecha de nacimiento', value: student.fechaNacimiento ?? '—' },
+    { label: 'Teléfono', value: student.telefono ?? '—' },
+    { label: 'Email', value: student.email ?? '—' },
+    { label: 'Dirección', value: student.direccion ?? '—' },
     { label: 'Ciclo', value: student.cycleName ?? '—' },
     { label: 'Salón', value: student.classroomName ?? '—' },
+    { label: 'Apoderado', value: student.apoderadoNombre ?? '—' },
+    { label: 'Tel. apoderado', value: student.apoderadoTelefono ?? '—' },
+    { label: 'Email apoderado', value: student.apoderadoEmail ?? '—' },
+    { label: 'Observaciones', value: student.observaciones ?? '—' },
     { label: 'Estado', value: student.status ?? '—', pill: true },
   ]
 
@@ -83,9 +102,17 @@ export default function StudentTabs({ student, installments, attendances, initia
 
       <Tabs.Content value="info" className="outline-none">
         <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm md:p-6">
-          <div className="mb-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Información</p>
-            <h2 className="mt-2 text-xl font-bold text-gray-900">Ficha general del estudiante</h2>
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Información</p>
+              <h2 className="mt-2 text-xl font-bold text-gray-900">Ficha general del estudiante</h2>
+            </div>
+            <Link
+              href={`/students/${student.id}/edit`}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+            >
+              Editar información
+            </Link>
           </div>
           <InfoGrid student={student} />
         </div>

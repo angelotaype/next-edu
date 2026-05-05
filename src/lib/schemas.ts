@@ -61,6 +61,21 @@ export const LoginSchema = z.object({
   password: z.string().min(1, 'Ingresa tu contraseña.'),
 })
 
+export const StudentProfileSchema = CreateStudentSchema.pick({
+  nombres: true,
+  apellidos: true,
+  dni: true,
+  fecha_nacimiento: true,
+  telefono: true,
+  email: true,
+  direccion: true,
+  apoderado_nombre: true,
+  apoderado_telefono: true,
+  apoderado_email: true,
+  observaciones: true,
+})
+
 export type CreateStudentInput = z.infer<typeof CreateStudentSchema>
 export type CreatePaymentInput = z.infer<typeof CreatePaymentSchema>
 export type LoginInput = z.infer<typeof LoginSchema>
+export type StudentProfileInput = z.infer<typeof StudentProfileSchema>

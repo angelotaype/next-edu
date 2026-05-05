@@ -89,12 +89,20 @@ async function processQRToken(token: string) {
     try {
       console.log('🔍 QR Code detected:', normalizedToken)
 
-      const { data: studentRow, error: studentError } = await supabase
+      const { data: studentRowRaw, error: studentError } = await supabase
         .from('students')
         .select('id, code, nombres, apellidos, photo_url')
         .eq('code', normalizedToken)
         .is('deleted_at', null)
         .single()
+
+      const studentRow = studentRowRaw as {
+        id: string
+        code: string | null
+        nombres: string | null
+        apellidos: string | null
+        photo_url: string | null
+      } | null
 
       if (studentError || !studentRow) {
         throw new Error(studentError?.message ?? 'Alumno no encontrado con este código QR.')

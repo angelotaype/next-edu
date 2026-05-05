@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { z } from 'zod'
 import { CreateStudentSchema, type CreateStudentInput } from '@/lib/schemas'
 import { createClient } from '@/lib/supabase/client'
 import { createStudentWithPayment } from './actions'
@@ -18,6 +19,7 @@ const PLAN_TEMPLATES = [
 ] as const
 
 type WizardValues = CreateStudentInput
+type WizardFormValues = z.input<typeof CreateStudentSchema>
 
 interface CycleOption {
   id: string
@@ -104,7 +106,7 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<WizardValues>({
+  } = useForm<WizardFormValues, any, WizardValues>({
     resolver: zodResolver(CreateStudentSchema),
     defaultValues: {
       nombres: '',
