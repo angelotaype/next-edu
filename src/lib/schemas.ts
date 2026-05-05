@@ -45,12 +45,11 @@ export const CreateStudentSchema = z.object({
   cycle_id: z.string().uuid('Selecciona un ciclo válido.'),
   classroom_id: z.string().uuid('Selecciona un salón válido.'),
   selectedPlan: z.object({
-    templateId: z.string().min(1, 'Selecciona un tipo de plan.'),
-    installments: z.number().int().min(1, 'Plan inválido.'),
-    monthlyAmount: z.number().min(0.01, 'Plan inválido.'),
-    totalAmount: z.number().min(0.01, 'Plan inválido.'),
+    num_cuotas: z.number().int().min(1, 'Mínimo 1 cuota').max(36, 'Máximo 36 cuotas'),
+    monto_por_cuota: z.number().min(0.01, 'Monto inválido'),
+    frecuencia_dias: z.number().int().min(1).max(365),
+    fecha_primera_cuota: z.string().min(1),
   }),
-  payment_frequency: z.enum(['monthly', 'quarterly', 'yearly']),
   primerPago: CreatePaymentSchema.omit({ metodo: true }).extend({
     metodo: z.enum(['efectivo', 'yape', 'plin', 'transferencia']),
   }),

@@ -12,11 +12,6 @@ import { createClient } from '@/lib/supabase/client'
 import { createStudentWithPayment } from './actions'
 
 const STORAGE_KEY = 'next-edu:student-wizard'
-const PLAN_TEMPLATES = [
-  { id: '6m', name: '6 cuotas mensuales', installments: 6, amount: 120 },
-  { id: '12m', name: '12 cuotas mensuales', installments: 12, amount: 60 },
-  { id: '3m', name: '3 cuotas', installments: 3, amount: 240 },
-] as const
 
 type WizardValues = CreateStudentInput
 type WizardFormValues = z.input<typeof CreateStudentSchema>
@@ -43,7 +38,7 @@ const STEPS = [
   { number: 1, label: 'Datos', fields: ['nombres', 'apellidos', 'dni', 'fecha_nacimiento', 'telefono', 'email', 'direccion', 'apoderado_nombre', 'apoderado_telefono', 'apoderado_email', 'observaciones'] as const },
   { number: 2, label: 'Ciclo', fields: ['cycle_id'] as const },
   { number: 3, label: 'Salón', fields: ['classroom_id'] as const },
-  { number: 4, label: 'Plan', fields: ['selectedPlan.templateId', 'selectedPlan.installments', 'selectedPlan.monthlyAmount', 'selectedPlan.totalAmount', 'payment_frequency'] as const },
+  { number: 4, label: 'Plan', fields: ['selectedPlan.num_cuotas', 'selectedPlan.monto_por_cuota', 'selectedPlan.frecuencia_dias', 'selectedPlan.fecha_primera_cuota'] as const },
   { number: 5, label: 'Pago', fields: ['primerPago.monto', 'primerPago.metodo', 'primerPago.referencia'] as const },
 ] as const
 
@@ -94,8 +89,14 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
   const [currentStep, setCurrentStep] = useState(1)
   const [isPending, startTransition] = useTransition()
   const isLoading = isPending
+  const [numCuotas, setNumCuotas] = useState(6)
+  const [montoPorCuota, setMontoPorCuota] = useState(120)
+  const [frecuenciaDias, setFrecuenciaDias] = useState(30)
+  const [diasCustom, setDiasCustom] = useState(7)
+  const [fechaPrimera, setFechaPrimera] = useState(() => new Date().toISOString().split('T')[0] ?? '')
   const [availableClassrooms, setAvailableClassrooms] = useState<ClassroomOption[]>([])
   const [isLoadingClassrooms, setIsLoadingClassrooms] = useState(false)
+  const frecuenciaReal = frecuenciaDias === 0 ? diasCustom : frecuenciaDias
 
   const {
     register,
@@ -123,14 +124,13 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
       cycle_id: '',
       classroom_id: '',
       selectedPlan: {
-        templateId: '',
-        installments: 0,
-        monthlyAmount: 0,
-        totalAmount: 0,
+        num_cuotas: 6,
+        monto_por_cuota: 120,
+        frecuencia_dias: 30,
+        fecha_primera_cuota: new Date().toISOString().split('T')[0] ?? '',
       },
-      payment_frequency: 'monthly',
       primerPago: {
-        monto: 0,
+        monto: 120,
         metodo: 'efectivo',
         referencia: '',
       },
@@ -138,22 +138,8 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
   })
 
   const selectedCycleId = watch('cycle_id')
-  const selectedPlanTemplateId = watch('selectedPlan.templateId')
   const selectedClassroomId = watch('classroom_id')
   const primerPagoMonto = watch('primerPago.monto')
-
-  const selectedPlan = useMemo(() => {
-    const template = PLAN_TEMPLATES.find((plan) => plan.id === selectedPlanTemplateId)
-    if (!template) return null
-
-    return {
-      id: template.id,
-      name: template.name,
-      installments: template.installments,
-      monthly_fee: template.amount,
-      total_fee: template.installments * template.amount,
-    }
-  }, [selectedPlanTemplateId])
   const selectedCycle = useMemo(
     () => cycles.find((cycle) => cycle.id === selectedCycleId) ?? null,
     [cycles, selectedCycleId]
@@ -162,6 +148,13 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
     () => availableClassrooms.find((classroom) => classroom.id === selectedClassroomId) ?? classrooms.find((classroom) => classroom.id === selectedClassroomId) ?? null,
     [availableClassrooms, classrooms, selectedClassroomId]
   )
+  const totalPlan = numCuotas * montoPorCuota
+  const ultimaFecha = useMemo(() => {
+    const baseDate = new Date(fechaPrimera)
+    if (Number.isNaN(baseDate.getTime())) return '—'
+    baseDate.setDate(baseDate.getDate() + Math.max(numCuotas - 1, 0) * frecuenciaReal)
+    return baseDate.toLocaleDateString('es-PE')
+  }, [fechaPrimera, frecuenciaReal, numCuotas])
 
   useEffect(() => {
     const raw = window.sessionStorage.getItem(STORAGE_KEY)
@@ -171,6 +164,23 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
     try {
       const parsed = JSON.parse(raw) as { step?: number; values?: Partial<WizardValues> }
       if (parsed.values) {
+        const savedPlan = parsed.values.selectedPlan
+        if (savedPlan) {
+          if (typeof savedPlan.num_cuotas === 'number') setNumCuotas(savedPlan.num_cuotas)
+          if (typeof savedPlan.monto_por_cuota === 'number') setMontoPorCuota(savedPlan.monto_por_cuota)
+          if (typeof savedPlan.frecuencia_dias === 'number') {
+            const presetFrequencies = [1, 3, 7, 14, 30, 60, 90]
+            if (presetFrequencies.includes(savedPlan.frecuencia_dias)) {
+              setFrecuenciaDias(savedPlan.frecuencia_dias)
+            } else {
+              setFrecuenciaDias(0)
+              setDiasCustom(savedPlan.frecuencia_dias)
+            }
+          }
+          if (typeof savedPlan.fecha_primera_cuota === 'string' && savedPlan.fecha_primera_cuota) {
+            setFechaPrimera(savedPlan.fecha_primera_cuota)
+          }
+        }
         reset({
           ...getValues(),
           ...parsed.values,
@@ -255,18 +265,18 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
   }, [availableClassrooms, getValues, setValue])
 
   useEffect(() => {
-    const suggestedAmount = selectedPlan?.monthly_fee ?? selectedPlan?.total_fee ?? 0
-    if (selectedPlan) {
-      setValue('selectedPlan.installments', selectedPlan.installments)
-      setValue('selectedPlan.monthlyAmount', selectedPlan.monthly_fee ?? 0)
-      setValue('selectedPlan.totalAmount', selectedPlan.total_fee ?? 0)
-    } else {
-      setValue('selectedPlan.installments', 0)
-      setValue('selectedPlan.monthlyAmount', 0)
-      setValue('selectedPlan.totalAmount', 0)
+    setValue('selectedPlan.num_cuotas', numCuotas, { shouldValidate: currentStep === 4 })
+    setValue('selectedPlan.monto_por_cuota', montoPorCuota, { shouldValidate: currentStep === 4 })
+    setValue('selectedPlan.frecuencia_dias', frecuenciaReal, { shouldValidate: currentStep === 4 })
+    setValue('selectedPlan.fecha_primera_cuota', fechaPrimera, { shouldValidate: currentStep === 4 })
+  }, [currentStep, fechaPrimera, frecuenciaReal, montoPorCuota, numCuotas, setValue])
+
+  useEffect(() => {
+    const currentAmount = getValues('primerPago.monto')
+    if (!Number.isFinite(currentAmount) || currentAmount <= 0) {
+      setValue('primerPago.monto', montoPorCuota)
     }
-    setValue('primerPago.monto', suggestedAmount > 0 ? suggestedAmount : 0)
-  }, [selectedPlan?.id, selectedPlan?.installments, selectedPlan?.monthly_fee, selectedPlan?.total_fee, setValue])
+  }, [getValues, montoPorCuota, setValue])
 
   async function handleNext() {
     const fields = STEPS[currentStep - 1].fields as unknown as Parameters<typeof trigger>[0]
@@ -538,57 +548,123 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
         {currentStep === 4 && (
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
             <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-4 md:p-5">
-              <label htmlFor="selectedPlan.templateId" className="mb-1.5 block text-sm font-medium text-gray-700">
-                Tipo de plan
-              </label>
-              <select
-                id="selectedPlan.templateId"
-                className="min-h-12 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                {...register('selectedPlan.templateId')}
-              >
-                <option value="">Selecciona un tipo de plan</option>
-                {PLAN_TEMPLATES.map((plan) => (
-                  <option key={plan.id} value={plan.id}>{plan.name}</option>
-                ))}
-              </select>
-              {errors.selectedPlan?.templateId && <p className="mt-1 text-xs text-red-600">{errors.selectedPlan.templateId.message}</p>}
+              <div className="grid gap-5 md:grid-cols-2">
+                <div>
+                  <label htmlFor="num_cuotas" className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Número de cuotas
+                  </label>
+                  <input
+                    id="num_cuotas"
+                    type="number"
+                    min="1"
+                    max="36"
+                    value={numCuotas}
+                    onChange={(event) => setNumCuotas(Number(event.target.value))}
+                    className="min-h-12 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  />
+                  {errors.selectedPlan?.num_cuotas && <p className="mt-1 text-xs text-red-600">{errors.selectedPlan.num_cuotas.message}</p>}
+                </div>
 
-              <label htmlFor="payment_frequency" className="mb-1.5 mt-5 block text-sm font-medium text-gray-700">
-                Frecuencia de pago
-              </label>
-              <select
-                id="payment_frequency"
-                className="min-h-12 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                {...register('payment_frequency')}
-              >
-                <option value="monthly">Mensual</option>
-                <option value="quarterly">Trimestral</option>
-                <option value="yearly">Anual</option>
-              </select>
-              {errors.payment_frequency && <p className="mt-1 text-xs text-red-600">{errors.payment_frequency.message}</p>}
+                <div>
+                  <label htmlFor="monto_por_cuota" className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Monto por cuota
+                  </label>
+                  <input
+                    id="monto_por_cuota"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={montoPorCuota}
+                    onChange={(event) => setMontoPorCuota(Number(event.target.value))}
+                    className="min-h-12 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  />
+                  {errors.selectedPlan?.monto_por_cuota && <p className="mt-1 text-xs text-red-600">{errors.selectedPlan.monto_por_cuota.message}</p>}
+                </div>
+
+                <div>
+                  <label htmlFor="frecuencia_dias" className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Frecuencia
+                  </label>
+                  <select
+                    id="frecuencia_dias"
+                    value={frecuenciaDias}
+                    onChange={(event) => setFrecuenciaDias(Number(event.target.value))}
+                    className="min-h-12 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={1}>Diario (1 día)</option>
+                    <option value={3}>Cada 3 días</option>
+                    <option value={7}>Semanal (7 días)</option>
+                    <option value={14}>Quincenal (14 días)</option>
+                    <option value={30}>Mensual (30 días)</option>
+                    <option value={60}>Bimestral (60 días)</option>
+                    <option value={90}>Trimestral (90 días)</option>
+                    <option value={0}>Personalizado</option>
+                  </select>
+                  {errors.selectedPlan?.frecuencia_dias && <p className="mt-1 text-xs text-red-600">{errors.selectedPlan.frecuencia_dias.message}</p>}
+                </div>
+
+                <div>
+                  <label htmlFor="fecha_primera_cuota" className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Fecha primera cuota
+                  </label>
+                  <input
+                    id="fecha_primera_cuota"
+                    type="date"
+                    value={fechaPrimera}
+                    onChange={(event) => setFechaPrimera(event.target.value)}
+                    className="min-h-12 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  />
+                  {errors.selectedPlan?.fecha_primera_cuota && <p className="mt-1 text-xs text-red-600">{errors.selectedPlan.fecha_primera_cuota.message}</p>}
+                </div>
+              </div>
+
+              {frecuenciaDias === 0 && (
+                <div className="mt-5">
+                  <label htmlFor="dias_custom" className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Días entre cuotas
+                  </label>
+                  <input
+                    id="dias_custom"
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={diasCustom}
+                    onChange={(event) => setDiasCustom(Number(event.target.value))}
+                    placeholder="Días entre cuotas"
+                    className="min-h-12 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Referencia</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Preview en tiempo real</p>
               <div className="mt-4 space-y-4">
                 <div>
-                  <p className="text-sm text-gray-500">Cuota mensual</p>
+                  <p className="text-sm text-gray-500">Total del plan</p>
                   <p className="mt-1 text-lg font-semibold text-gray-900">
-                    {formatCurrency(selectedPlan?.monthly_fee ?? null)}
+                    {formatCurrency(Number.isFinite(totalPlan) ? totalPlan : null)}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-sm text-gray-500">Número de cuotas</p>
+                  <p className="text-sm text-gray-500">Primera cuota</p>
                   <p className="mt-1 text-lg font-semibold text-gray-900">
-                    {selectedPlan?.installments ?? '—'}
+                    {fechaPrimera || '—'}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-sm text-gray-500">Costo total</p>
+                  <p className="text-sm text-gray-500">Última cuota</p>
                   <p className="mt-1 text-lg font-semibold text-gray-900">
-                    {formatCurrency(selectedPlan?.total_fee ?? null)}
+                    {ultimaFecha}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-500">Frecuencia</p>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">
+                    Cada {frecuenciaReal} día(s)
                   </p>
                 </div>
               </div>
@@ -612,13 +688,18 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
                 <div>
                   <p className="text-sm text-gray-500">Plan</p>
                   <p className="mt-1 text-base font-semibold text-gray-900">
-                    {selectedPlan?.name ?? 'Sin plan'}
-                    {selectedPlan?.monthly_fee != null ? ` · ${selectedPlan.installments} cuotas de ${formatCurrency(selectedPlan.monthly_fee)}` : ''}
+                    {numCuotas} cuotas de {formatCurrency(Number.isFinite(montoPorCuota) ? montoPorCuota : null)}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Total</p>
-                  <p className="mt-1 text-lg font-semibold text-gray-900">{formatCurrency(selectedPlan?.total_fee ?? null)}</p>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">{formatCurrency(Number.isFinite(totalPlan) ? totalPlan : null)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Cronograma</p>
+                  <p className="mt-1 text-sm text-gray-700">
+                    Primera cuota: {fechaPrimera || '—'} · Última cuota: {ultimaFecha} · Cada {frecuenciaReal} día(s)
+                  </p>
                 </div>
               </div>
             </div>
@@ -673,7 +754,7 @@ export default function WizardForm({ cycles, classrooms }: WizardFormProps) {
               </div>
 
               <p className="mt-4 text-xs text-gray-500">
-                Monto sugerido: {formatCurrency(selectedPlan?.monthly_fee ?? null)}. Monto actual: {formatCurrency(Number.isFinite(primerPagoMonto) ? primerPagoMonto : null)}
+                Monto sugerido: {formatCurrency(Number.isFinite(montoPorCuota) ? montoPorCuota : null)}. Monto actual: {formatCurrency(Number.isFinite(primerPagoMonto) ? primerPagoMonto : null)}
               </p>
             </div>
           </div>

@@ -27,25 +27,6 @@ function buildStudentCode(schoolId: string, dni: string): string {
   return `ALU-${schoolPrefix}-${dniSuffix}-${timestamp}${random}`
 }
 
-function getFirstDueDate() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getDate() <= 20 ? now.getMonth() : now.getMonth() + 1
-  return new Date(year, month, 20).toISOString().slice(0, 10)
-}
-
-function getFrequencyInterval(frequency: CreateStudentWithPaymentInput['payment_frequency']) {
-  switch (frequency) {
-    case 'quarterly':
-      return '3 months'
-    case 'yearly':
-      return '1 year'
-    case 'monthly':
-    default:
-      return '1 month'
-  }
-}
-
 async function getStudentColumnSet(db: any) {
   const { data, error } = await db
     .from('students')
@@ -164,7 +145,8 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
     throw new Error(enrollmentInsert.error?.message ?? 'No se pudo crear la matrícula.')
   }
 
-  const planName = `${parsed.selectedPlan.installments} cuotas de S/ ${parsed.selectedPlan.monthlyAmount.toFixed(2)}`
+  const totalAmount = parsed.selectedPlan.num_cuotas * parsed.selectedPlan.monto_por_cuota
+  const planName = `${parsed.selectedPlan.num_cuotas} cuotas de S/ ${parsed.selectedPlan.monto_por_cuota.toFixed(2)}`
   const { data: paymentPlan, error: paymentPlanError } = await db
     .from('payment_plans')
     .insert({
@@ -172,7 +154,7 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
       student_id: studentId,
       cycle_id: parsed.cycle_id,
       name: planName,
-      total_amount: parsed.selectedPlan.totalAmount,
+      total_amount: totalAmount,
       status: 'activo',
     })
     .select('id')
@@ -189,9 +171,9 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
   const paymentPlanId = paymentPlan.id as string
   const generatePayload = {
     p_payment_plan_id: paymentPlanId,
-    p_num_installments: parsed.selectedPlan.installments,
-    p_first_due_date: getFirstDueDate(),
-    p_frequency: getFrequencyInterval(parsed.payment_frequency),
+    p_num_installments: parsed.selectedPlan.num_cuotas,
+    p_first_due_date: parsed.selectedPlan.fecha_primera_cuota,
+    p_frequency_days: parsed.selectedPlan.frecuencia_dias,
   }
 
   const generateRes = await db.rpc('fn_generate_installments', generatePayload)
