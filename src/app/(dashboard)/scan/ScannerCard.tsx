@@ -157,12 +157,12 @@ export default function ScannerCard() {
         </div>
       </div>
 
-      <div className="relative mb-4 aspect-video overflow-hidden rounded-2xl bg-black shadow-xl">
+      <div className="relative mb-4 aspect-[3/4] overflow-hidden rounded-2xl bg-black shadow-xl sm:aspect-video">
         <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
 
         {status === 'scanning' && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="relative h-56 w-56">
+            <div className="relative h-44 w-44 sm:h-56 sm:w-56">
               <span className="absolute left-0 top-0 h-8 w-8 rounded-tl-lg border-l-4 border-t-4 border-[#2563EB]" />
               <span className="absolute right-0 top-0 h-8 w-8 rounded-tr-lg border-r-4 border-t-4 border-[#2563EB]" />
               <span className="absolute bottom-0 left-0 h-8 w-8 rounded-bl-lg border-b-4 border-l-4 border-[#2563EB]" />
@@ -272,7 +272,7 @@ export default function ScannerCard() {
             )}
           </div>
 
-          <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
+          <div className="mt-3 flex flex-col gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-gray-400">
               Escaneado: {new Date(student.scanned_at).toLocaleTimeString('es-PE')}
             </p>

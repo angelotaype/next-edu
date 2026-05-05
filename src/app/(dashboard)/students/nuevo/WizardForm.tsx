@@ -76,14 +76,14 @@ function formatCurrency(value: number | null) {
 
 function Stepper({ currentStep }: { currentStep: number }) {
   return (
-    <div className="mb-6 overflow-x-auto">
-      <div className="flex min-w-max items-center gap-2 sm:gap-3">
+    <div className="mb-6">
+      <div className="flex flex-col gap-3 sm:min-w-max sm:flex-row sm:items-center sm:gap-3">
         {STEPS.map((step, index) => {
           const isActive = currentStep === step.number
           const isDone = currentStep > step.number
 
           return (
-            <div key={step.number} className="flex items-center gap-2">
+            <div key={step.number} className="flex items-center gap-3 sm:gap-2">
               <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-2.5 py-2 shadow-sm sm:px-3">
                 <div
                   className={[
@@ -97,7 +97,7 @@ function Stepper({ currentStep }: { currentStep: number }) {
                   {step.label}
                 </span>
               </div>
-              {index < STEPS.length - 1 && <div className="h-px w-6 bg-gray-300 sm:w-10" />}
+              {index < STEPS.length - 1 && <div className="h-6 w-px bg-gray-300 sm:h-px sm:w-10" />}
             </div>
           )
         })}
