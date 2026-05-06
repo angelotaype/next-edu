@@ -113,13 +113,14 @@ export async function createQuickPayment(input: QuickPaymentInput) {
 
   const insertPayload = {
     school_id: schoolId,
-    student_id: parsed.studentId,
     payment_plan_id: paymentPlanId,
     paid_at: paidAt,
     receipt_number: receiptNumber,
     amount: parsed.amount,
     method: parsed.method,
     reference: parsed.reference || null,
+    is_quick_payment: true,
+    scanned_by: user.id,
     created_by: user.id,
   }
 
