@@ -5,10 +5,18 @@ import { format } from 'date-fns'
 
 export interface InstallmentRow {
   id: string
+  paymentPlanId: string | null
   installmentNumber: number | null
   amountDue: number | null
   amountPaid: number | null
   dueDate: string | null
+  status: string | null
+}
+
+export interface PaymentPlanRow {
+  id: string
+  name: string | null
+  totalAmount: number | null
   status: string | null
 }
 
@@ -49,10 +57,12 @@ function statusClass(status: string | null) {
 
 export default function PaymentsTab({
   studentId,
+  plans,
   installments,
   planTotal,
 }: {
   studentId: string
+  plans: PaymentPlanRow[]
   installments: InstallmentRow[]
   planTotal: number
 }) {
@@ -67,6 +77,23 @@ export default function PaymentsTab({
 
   return (
     <div className="space-y-4">
+      {plans.length > 0 ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {plans.map((plan) => (
+            <div key={plan.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Plan</p>
+              <p className="mt-2 text-base font-semibold text-gray-900">{plan.name ?? 'Plan sin nombre'}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                <span>Total: {formatCurrency(plan.totalAmount)}</span>
+                <span className={['rounded-full px-2.5 py-1 text-xs font-medium capitalize', statusClass(plan.status)].join(' ')}>
+                  {plan.status ?? '—'}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Total del plan</p>

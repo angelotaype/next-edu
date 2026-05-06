@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import * as Tabs from '@radix-ui/react-tabs'
-import PaymentsTab, { type InstallmentRow } from './PaymentsTab'
+import PaymentsTab, { type InstallmentRow, type PaymentPlanRow } from './PaymentsTab'
 import AttendanceTab, { type AttendanceRow } from './AttendanceTab'
 import CarnetTab from './CarnetTab'
 
@@ -27,6 +27,7 @@ export interface StudentDetail {
 
 interface StudentTabsProps {
   student: StudentDetail
+  plans: PaymentPlanRow[]
   installments: InstallmentRow[]
   attendances: AttendanceRow[]
   planTotal: number
@@ -82,7 +83,7 @@ function InfoGrid({ student }: { student: StudentDetail }) {
   )
 }
 
-export default function StudentTabs({ student, installments, attendances, planTotal, initialTab = 'info' }: StudentTabsProps) {
+export default function StudentTabs({ student, plans, installments, attendances, planTotal, initialTab = 'info' }: StudentTabsProps) {
   return (
     <Tabs.Root defaultValue={initialTab} className="space-y-5">
       <Tabs.List className="flex min-h-11 w-full gap-2 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-2 shadow-sm">
@@ -126,7 +127,7 @@ export default function StudentTabs({ student, installments, attendances, planTo
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Pagos</p>
             <h2 className="mt-2 text-xl font-bold text-gray-900">Cuotas e historial del plan</h2>
           </div>
-          <PaymentsTab studentId={student.id} installments={installments} planTotal={planTotal} />
+          <PaymentsTab studentId={student.id} plans={plans} installments={installments} planTotal={planTotal} />
         </div>
       </Tabs.Content>
 

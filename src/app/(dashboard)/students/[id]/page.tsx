@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import StudentTabs, { type StudentDetail } from './StudentTabs'
 import type { AttendanceRow } from './AttendanceTab'
-import type { InstallmentRow } from './PaymentsTab'
+import type { InstallmentRow, PaymentPlanRow } from './PaymentsTab'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,6 +12,7 @@ function fullName(student: { nombres?: string | null; apellidos?: string | null 
 
 async function getStudentData(studentId: string): Promise<{
   student: StudentDetail
+  plans: PaymentPlanRow[]
   installments: InstallmentRow[]
   attendances: AttendanceRow[]
   planTotal: number
@@ -51,7 +52,7 @@ async function getStudentData(studentId: string): Promise<{
 
     const paymentPlansRes = await db
       .from('payment_plans')
-      .select('id, total_amount')
+      .select('id, name, total_amount, status')
       .eq('student_id', studentId)
       .is('deleted_at', null)
 
@@ -60,13 +61,26 @@ async function getStudentData(studentId: string): Promise<{
       throw new Error(`PaymentPlans: ${paymentPlansRes.error.message}`)
     }
 
-    const paymentPlans = (paymentPlansRes.data ?? []) as Array<{ id?: string | null; total_amount?: number | string | null }>
+    const paymentPlans = (paymentPlansRes.data ?? []) as Array<{
+      id?: string | null
+      name?: string | null
+      total_amount?: number | string | null
+      status?: string | null
+    }>
 
     const paymentPlanIds = paymentPlans
       .map((row) => row.id)
       .filter((value): value is string => Boolean(value))
 
     const planTotal = paymentPlans.reduce((sum, row) => sum + (Number(row.total_amount) || 0), 0)
+    const plans: PaymentPlanRow[] = paymentPlans
+      .filter((row) => Boolean(row.id))
+      .map((row) => ({
+        id: row.id as string,
+        name: row.name ?? null,
+        totalAmount: row.total_amount != null ? Number(row.total_amount) : null,
+        status: row.status ?? null,
+      }))
 
     const [installmentsRes, attendanceRes] = paymentPlanIds.length === 0
       ? [
@@ -125,6 +139,7 @@ async function getStudentData(studentId: string): Promise<{
 
     const installments: InstallmentRow[] = ((installmentsRes.data ?? []) as any[]).map((row) => ({
       id: row.id as string,
+      paymentPlanId: (row.payment_plan_id as string | null) ?? null,
       installmentNumber:
         typeof row.installment_number === 'number'
           ? row.installment_number
@@ -144,7 +159,7 @@ async function getStudentData(studentId: string): Promise<{
       checkOut: null,
     }))
 
-    return { student, installments, attendances, planTotal }
+    return { student, plans, installments, attendances, planTotal }
   } catch (e) {
     console.error('❌ Complete error:', e)
     throw e
@@ -158,7 +173,7 @@ export default async function StudentDetailPage({
   params: { id: string }
   searchParams?: { tab?: string }
 }) {
-  const { student, installments, attendances, planTotal } = await getStudentData(params.id)
+  const { student, plans, installments, attendances, planTotal } = await getStudentData(params.id)
   const tab = searchParams?.tab
   const initialTab = tab === 'payments' || tab === 'attendance' || tab === 'card' ? tab : 'info'
 
@@ -174,7 +189,7 @@ export default async function StudentDetailPage({
         </div>
       </div>
 
-      <StudentTabs student={student} installments={installments} attendances={attendances} planTotal={planTotal} initialTab={initialTab} />
+      <StudentTabs student={student} plans={plans} installments={installments} attendances={attendances} planTotal={planTotal} initialTab={initialTab} />
     </div>
   )
 }
