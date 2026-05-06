@@ -108,7 +108,7 @@ async function getStudentData(studentId: string): Promise<{
       status: (studentRaw.estado_matricula as string | null) ?? null,
       dni: (studentRaw.dni as string | null) ?? null,
       fechaNacimiento: (studentRaw.fecha_nacimiento as string | null) ?? null,
-      telefono: ((studentRaw.telefono as string | null | undefined) ?? (studentRaw.phone as string | null | undefined)) ?? null,
+      telefono: (studentRaw.telefono as string | null) ?? null,
       email: (studentRaw.email as string | null) ?? null,
       direccion: (studentRaw.direccion as string | null) ?? null,
       qrToken: (studentRaw.qr_token as string | null) ?? null,

@@ -49,7 +49,6 @@ export async function updateStudent(studentId: string, input: StudentProfileInpu
     email: parsed.email,
   }
 
-  if (studentColumns.has('phone')) updatePayload.phone = parsed.telefono
   if (studentColumns.has('telefono')) updatePayload.telefono = parsed.telefono
   if (studentColumns.has('fecha_nacimiento')) updatePayload.fecha_nacimiento = parsed.fecha_nacimiento
   if (studentColumns.has('direccion')) updatePayload.direccion = parsed.direccion

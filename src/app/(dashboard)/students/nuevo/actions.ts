@@ -82,7 +82,6 @@ export async function createStudentWithPayment(input: CreateStudentWithPaymentIn
 
   if (studentColumns.has('estado')) studentPayload.estado = 'activo'
   if (studentColumns.has('created_by')) studentPayload.created_by = user.id
-  if (studentColumns.has('phone')) studentPayload.phone = parsed.telefono || null
   if (studentColumns.has('telefono')) studentPayload.telefono = parsed.telefono || null
   if (studentColumns.has('fecha_nacimiento')) studentPayload.fecha_nacimiento = parsed.fecha_nacimiento || null
   if (studentColumns.has('direccion')) studentPayload.direccion = parsed.direccion || null

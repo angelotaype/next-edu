@@ -27,6 +27,7 @@ function StudentsSkeleton() {
 
 async function StudentsData() {
   const supabase = createClient()
+  const db = supabase as any
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -43,53 +44,65 @@ async function StudentsData() {
 
   const schoolId = profile.school_id as string
 
-  const [studentsRes, debtRes] = await Promise.all([
-    supabase
-      .from('students')
-      .select(`
-        id, code, nombres, apellidos, estado_matricula, photo_url,
-        classroom_id,
-        classrooms ( id, name, cycle_id, cycles ( id, name ) )
-      `)
-      .eq('school_id', schoolId)
-      .is('deleted_at', null)
-      .order('apellidos', { ascending: true }),
-    supabase
-      .from('student_debt_summary')
-      .select('student_id, debt_amount, debt_status')
-      .eq('school_id', schoolId),
-  ])
+  const { data: debtRows, error: debtError } = await db
+    .from('student_qr_status')
+    .select('*')
+    .eq('school_id', schoolId)
+    .order('apellidos', { ascending: true })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rawStudents = (studentsRes.data ?? []) as any[]
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const debtList = (debtRes.data ?? []) as any[]
+  if (debtError) throw new Error(debtError.message)
 
-  const debtMap = new Map<string, { amount: number; status: string }>()
-  for (const d of debtList) {
-    debtMap.set(d.student_id, {
-      amount: Number(d.debt_amount) || 0,
-      status: d.debt_status || 'sin_plan',
-    })
+  const qrStudents = (debtRows ?? []) as any[]
+  const studentIds = qrStudents
+    .map((student) => student.id as string | null | undefined)
+    .filter((value): value is string => Boolean(value))
+
+  const studentsMetaRes = studentIds.length === 0
+    ? { data: [], error: null }
+    : await db
+        .from('students')
+        .select(`
+          id,
+          estado_matricula,
+          classroom_id,
+          classrooms ( id, name, cycle_id, cycles ( id, name ) )
+        `)
+        .in('id', studentIds)
+
+  if (studentsMetaRes.error) throw new Error(studentsMetaRes.error.message)
+
+  const studentsMetaMap = new Map<string, any>()
+  for (const student of (studentsMetaRes.data ?? []) as any[]) {
+    const studentId = student.id as string | null | undefined
+    if (studentId) studentsMetaMap.set(studentId, student)
   }
 
-  const rows: StudentRow[] = rawStudents.map((s) => {
-    const classroom = s.classrooms as { id?: string; name?: string; cycles?: { id?: string; name?: string } } | null
+  const rows: StudentRow[] = qrStudents.map((student) => {
+    const meta = studentsMetaMap.get(student.id as string) ?? null
+    const classroom = meta?.classrooms as { id?: string; name?: string; cycles?: { id?: string; name?: string } } | null
     const cycle = classroom?.cycles ?? null
-    const debt = debtMap.get(s.id) ?? { amount: 0, status: 'sin_plan' }
+    const paymentStatus = (student.payment_status as string | null) ?? 'Sin plan'
+
     return {
-      id: s.id,
-      code: s.code ?? '—',
-      nombres: s.nombres ?? '',
-      apellidos: s.apellidos ?? '',
-      photoUrl: s.photo_url ?? null,
-      estadoMatricula: s.estado_matricula ?? 'pendiente',
-      classroomId: classroom?.id ?? null,
-      classroomName: classroom?.name ?? null,
-      cycleId: cycle?.id ?? null,
-      cycleName: cycle?.name ?? null,
-      debtAmount: debt.amount,
-      debtStatus: debt.status,
+      id: student.id as string,
+      code: (student.code as string | null) ?? '—',
+      nombres: (student.nombres as string | null) ?? '',
+      apellidos: (student.apellidos as string | null) ?? '',
+      photoUrl: (student.photo_url as string | null) ?? null,
+      estadoMatricula: (meta?.estado_matricula as string | null | undefined) ?? 'pendiente',
+      classroomId: (classroom?.id as string | null | undefined) ?? null,
+      classroomName: (classroom?.name as string | null | undefined) ?? null,
+      cycleId: (cycle?.id as string | null | undefined) ?? null,
+      cycleName: (cycle?.name as string | null | undefined) ?? null,
+      debtAmount: Number(student.total_debt) || 0,
+      debtStatus:
+        paymentStatus === 'Al día'
+          ? 'al_dia'
+          : paymentStatus === 'En riesgo'
+            ? 'moroso'
+            : paymentStatus === 'Debe pagar'
+              ? 'pendiente'
+              : 'sin_plan',
     }
   })
 

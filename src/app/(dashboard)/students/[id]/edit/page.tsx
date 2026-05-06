@@ -43,7 +43,7 @@ async function getStudentForEdit(studentId: string) {
     apellidos: (student.apellidos as string | null) ?? '',
     dni: (student.dni as string | null) ?? null,
     fecha_nacimiento: (student.fecha_nacimiento as string | null) ?? null,
-    telefono: ((student.telefono as string | null | undefined) ?? (student.phone as string | null | undefined)) ?? null,
+    telefono: (student.telefono as string | null) ?? null,
     email: (student.email as string | null) ?? null,
     direccion: (student.direccion as string | null) ?? null,
     apoderado_nombre: (student.apoderado_nombre as string | null) ?? null,

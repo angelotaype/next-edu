@@ -100,7 +100,7 @@ async function main() {
   const paymentPlanIds = (paymentPlans ?? []).map((plan) => plan.id)
 
   const deletedPayments = await deleteByIds(supabase, 'payments', 'payment_plan_id', paymentPlanIds)
-  const deletedInstallments = await deleteByIds(supabase, 'installments', 'enrollment_id', enrollmentIds)
+  const deletedInstallments = await deleteByIds(supabase, 'installments', 'payment_plan_id', paymentPlanIds)
   const deletedAttendanceLogs = await deleteByIds(supabase, 'attendance_logs', 'student_id', studentIds)
   const deletedPaymentPlans = await deleteByIds(supabase, 'payment_plans', 'id', paymentPlanIds)
   const deletedEnrollments = await deleteByIds(supabase, 'enrollments', 'id', enrollmentIds)

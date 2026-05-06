@@ -139,7 +139,7 @@ async function DashboardData() {
     ? { data: [], error: null }
     : await supabase
         .from('installments')
-        .select('payment_plan_id, amount_due, amount_paid, status, due_date, deleted_at')
+        .select('payment_plan_id, amount_due, amount_paid, status, due_date')
         .in('payment_plan_id', paymentPlanIds)
 
   if (installmentsRes.error) throw new Error(installmentsRes.error.message)
