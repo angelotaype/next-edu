@@ -14,6 +14,7 @@ async function getStudentData(studentId: string): Promise<{
   student: StudentDetail
   installments: InstallmentRow[]
   attendances: AttendanceRow[]
+  planTotal: number
 }> {
   try {
     const supabase = createClient()
@@ -50,7 +51,7 @@ async function getStudentData(studentId: string): Promise<{
 
     const paymentPlansRes = await db
       .from('payment_plans')
-      .select('id')
+      .select('id, total_amount')
       .eq('student_id', studentId)
       .is('deleted_at', null)
 
@@ -59,9 +60,13 @@ async function getStudentData(studentId: string): Promise<{
       throw new Error(`PaymentPlans: ${paymentPlansRes.error.message}`)
     }
 
-    const paymentPlanIds = ((paymentPlansRes.data ?? []) as Array<{ id?: string | null }>)
+    const paymentPlans = (paymentPlansRes.data ?? []) as Array<{ id?: string | null; total_amount?: number | string | null }>
+
+    const paymentPlanIds = paymentPlans
       .map((row) => row.id)
       .filter((value): value is string => Boolean(value))
+
+    const planTotal = paymentPlans.reduce((sum, row) => sum + (Number(row.total_amount) || 0), 0)
 
     const [installmentsRes, attendanceRes] = paymentPlanIds.length === 0
       ? [
@@ -77,7 +82,7 @@ async function getStudentData(studentId: string): Promise<{
             .from('installments')
             .select('*')
             .in('payment_plan_id', paymentPlanIds)
-            .order('due_date', { ascending: true }),
+            .order('installment_number', { ascending: true }),
           db
             .from('attendance_logs')
             .select('*')
@@ -120,7 +125,14 @@ async function getStudentData(studentId: string): Promise<{
 
     const installments: InstallmentRow[] = ((installmentsRes.data ?? []) as any[]).map((row) => ({
       id: row.id as string,
-      amount: typeof row.amount_due === 'number' ? row.amount_due : row.amount_due != null ? Number(row.amount_due) : null,
+      installmentNumber:
+        typeof row.installment_number === 'number'
+          ? row.installment_number
+          : row.installment_number != null
+            ? Number(row.installment_number)
+            : null,
+      amountDue: typeof row.amount_due === 'number' ? row.amount_due : row.amount_due != null ? Number(row.amount_due) : null,
+      amountPaid: typeof row.amount_paid === 'number' ? row.amount_paid : row.amount_paid != null ? Number(row.amount_paid) : null,
       dueDate: (row.due_date as string | null) ?? null,
       status: (row.status as string | null) ?? null,
     }))
@@ -132,7 +144,7 @@ async function getStudentData(studentId: string): Promise<{
       checkOut: null,
     }))
 
-    return { student, installments, attendances }
+    return { student, installments, attendances, planTotal }
   } catch (e) {
     console.error('❌ Complete error:', e)
     throw e
@@ -146,7 +158,7 @@ export default async function StudentDetailPage({
   params: { id: string }
   searchParams?: { tab?: string }
 }) {
-  const { student, installments, attendances } = await getStudentData(params.id)
+  const { student, installments, attendances, planTotal } = await getStudentData(params.id)
   const tab = searchParams?.tab
   const initialTab = tab === 'payments' || tab === 'attendance' || tab === 'card' ? tab : 'info'
 
@@ -162,7 +174,7 @@ export default async function StudentDetailPage({
         </div>
       </div>
 
-      <StudentTabs student={student} installments={installments} attendances={attendances} initialTab={initialTab} />
+      <StudentTabs student={student} installments={installments} attendances={attendances} planTotal={planTotal} initialTab={initialTab} />
     </div>
   )
 }

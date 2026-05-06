@@ -5,7 +5,9 @@ import { format } from 'date-fns'
 
 export interface InstallmentRow {
   id: string
-  amount: number | null
+  installmentNumber: number | null
+  amountDue: number | null
+  amountPaid: number | null
   dueDate: string | null
   status: string | null
 }
@@ -45,7 +47,15 @@ function statusClass(status: string | null) {
   }
 }
 
-export default function PaymentsTab({ studentId, installments }: { studentId: string; installments: InstallmentRow[] }) {
+export default function PaymentsTab({
+  studentId,
+  installments,
+  planTotal,
+}: {
+  studentId: string
+  installments: InstallmentRow[]
+  planTotal: number
+}) {
   if (installments.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-10 text-center">
@@ -57,13 +67,34 @@ export default function PaymentsTab({ studentId, installments }: { studentId: st
 
   return (
     <div className="space-y-4">
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Total del plan</p>
+          <p className="mt-2 text-xl font-bold text-gray-900">{formatCurrency(planTotal)}</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Cuotas</p>
+          <p className="mt-2 text-xl font-bold text-gray-900">{installments.length}</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Pendiente</p>
+          <p className="mt-2 text-xl font-bold text-gray-900">
+            {formatCurrency(
+              installments.reduce((sum, installment) => sum + Math.max((installment.amountDue ?? 0) - (installment.amountPaid ?? 0), 0), 0)
+            )}
+          </p>
+        </div>
+      </div>
+
       <div className="md:hidden space-y-3">
-        {installments.map((installment, index) => (
+        {installments.map((installment) => (
           <div key={installment.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Cuota {index + 1}</p>
-                <p className="mt-1 text-lg font-semibold text-gray-900">{formatCurrency(installment.amount)}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                  Cuota {installment.installmentNumber ?? '—'}
+                </p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">{formatCurrency(installment.amountDue)}</p>
               </div>
               <span className={['rounded-full px-2.5 py-1 text-xs font-medium capitalize', statusClass(installment.status)].join(' ')}>
                 {installment.status ?? '—'}
@@ -75,14 +106,17 @@ export default function PaymentsTab({ studentId, installments }: { studentId: st
                 <p className="font-medium text-gray-700">{formatDate(installment.dueDate)}</p>
               </div>
               <div>
-                <p className="text-gray-400">Acción</p>
-                <Link
-                  href={`/students/${studentId}`}
-                  className="inline-flex min-h-11 items-center rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 transition hover:border-blue-200 hover:text-blue-700"
-                >
-                  Ver detalle
-                </Link>
+                <p className="text-gray-400">Pagado</p>
+                <p className="font-medium text-gray-700">{formatCurrency(installment.amountPaid)}</p>
               </div>
+            </div>
+            <div className="mt-4">
+              <Link
+                href={`/students/${studentId}`}
+                className="inline-flex min-h-11 items-center rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 transition hover:border-blue-200 hover:text-blue-700"
+              >
+                Ver detalle
+              </Link>
             </div>
           </div>
         ))}
@@ -92,7 +126,9 @@ export default function PaymentsTab({ studentId, installments }: { studentId: st
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Cuota</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Monto</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Pagado</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Vencimiento</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Estado</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Acciones</th>
@@ -101,7 +137,9 @@ export default function PaymentsTab({ studentId, installments }: { studentId: st
           <tbody className="divide-y divide-gray-100">
             {installments.map((installment) => (
               <tr key={installment.id} className="hover:bg-gray-50/80">
-                <td className="px-4 py-4 text-sm font-semibold text-gray-900">{formatCurrency(installment.amount)}</td>
+                <td className="px-4 py-4 text-sm font-semibold text-gray-900">{installment.installmentNumber ?? '—'}</td>
+                <td className="px-4 py-4 text-sm font-semibold text-gray-900">{formatCurrency(installment.amountDue)}</td>
+                <td className="px-4 py-4 text-sm text-gray-600">{formatCurrency(installment.amountPaid)}</td>
                 <td className="px-4 py-4 text-sm text-gray-600">{formatDate(installment.dueDate)}</td>
                 <td className="px-4 py-4">
                   <span className={['rounded-full px-2.5 py-1 text-xs font-medium capitalize', statusClass(installment.status)].join(' ')}>
