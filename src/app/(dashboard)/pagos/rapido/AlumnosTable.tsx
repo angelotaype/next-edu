@@ -13,6 +13,9 @@ export interface AlumnoRow {
   classroomName: string | null
   debtTotal: number
   overdueDebt: number
+  paymentStatus: string
+  pendingInstallments: number
+  nextInstallmentAmount: number
 }
 
 function formatCurrency(value: number) {
@@ -29,15 +32,15 @@ function initials(name: string) {
 }
 
 function statusForRow(row: AlumnoRow) {
-  if (row.debtTotal <= 0) {
+  if (row.paymentStatus === 'Al día' || row.debtTotal <= 0) {
     return { label: 'Al día', icon: '🟢', className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' }
   }
 
-  if (row.overdueDebt > 0) {
-    return { label: 'Debe', icon: '🔴', className: 'bg-red-50 text-red-700 ring-1 ring-red-200' }
+  if (row.paymentStatus === 'En riesgo' || row.overdueDebt > 0) {
+    return { label: 'En riesgo', icon: '🔴', className: 'bg-red-50 text-red-700 ring-1 ring-red-200' }
   }
 
-  return { label: 'Parcial', icon: '🟡', className: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' }
+  return { label: 'Debe pagar', icon: '🟡', className: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' }
 }
 
 export default function AlumnosTable({ rows }: { rows: AlumnoRow[] }) {
@@ -192,6 +195,9 @@ export default function AlumnosTable({ rows }: { rows: AlumnoRow[] }) {
                 fullName: selected.fullName,
                 debtAmount: selected.debtTotal,
                 overdueAmount: selected.overdueDebt,
+                pendingInstallments: selected.pendingInstallments,
+                nextInstallmentAmount: selected.nextInstallmentAmount,
+                paymentStatus: selected.paymentStatus,
               }
             : null
         }
