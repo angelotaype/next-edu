@@ -1,20 +1,11 @@
 import { createBrowserClient } from '@supabase/ssr'
 import type { Database } from '@/types/database'
 
-function getRequiredEnv(name: 'NEXT_PUBLIC_SUPABASE_URL' | 'NEXT_PUBLIC_SUPABASE_ANON_KEY') {
-  const value = process.env[name]
-  if (!value) {
-    throw new Error(`Missing environment variable: ${name}`)
-  }
-  return value
-}
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://kkotbctgfzyaszgvrfep.supabase.co'
+const SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtrb3RiY3RnZnp5YXN6Z3ZyZmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMjc4NzEsImV4cCI6MjA5MjgwMzg3MX0.nJhynoTYQ5adDwaqmRLxXJkKB3Z69_A_DAP_Z9YIPIs'
 
 export function createClient() {
-  const supabaseUrl = getRequiredEnv('NEXT_PUBLIC_SUPABASE_URL')
-  const supabaseAnonKey = getRequiredEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
-
-  return createBrowserClient<Database>(
-    supabaseUrl,
-    supabaseAnonKey
-  )
+  return createBrowserClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY)
 }
