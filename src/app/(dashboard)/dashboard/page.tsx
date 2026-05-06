@@ -22,10 +22,8 @@ function formatDate(iso: string) {
 }
 
 const STATUS_MAP: Record<string, { label: string; className: string }> = {
-  completed: { label: 'Pagado', className: 'border border-green-200 bg-green-50 text-green-700' },
-  pending: { label: 'Pendiente', className: 'border border-yellow-200 bg-yellow-50 text-yellow-700' },
-  partial: { label: 'Parcial', className: 'border border-sky-200 bg-sky-50 text-sky-700' },
-  overdue: { label: 'Vencido', className: 'border border-red-200 bg-red-50 text-red-700' },
+  completado: { label: 'Completado', className: 'border border-green-200 bg-green-50 text-green-700' },
+  completed: { label: 'Completado', className: 'border border-green-200 bg-green-50 text-green-700' },
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -104,27 +102,103 @@ async function DashboardData() {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
   const tomorrowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString()
 
-  const [studentsRes, incomeRes, debtRes, attendanceRes, paymentsRes] = await Promise.all([
+  const [studentsRes, paymentsRes, attendanceRes, paymentPlansRes] = await Promise.all([
     supabase.from('students').select('*', { count: 'exact', head: true })
       .eq('school_id', schoolId).is('deleted_at', null),
-    supabase.from('payments').select('amount')
-      .eq('school_id', schoolId).eq('status', 'completed').gte('created_at', thirtyDaysAgo),
-    supabase.from('student_debt_summary').select('debt_amount').eq('school_id', schoolId),
+    supabase.from('payments')
+      .select('id, payment_plan_id, amount, method, paid_at, deleted_at')
+      .eq('school_id', schoolId)
+      .is('deleted_at', null)
+      .order('paid_at', { ascending: false })
+      .limit(50),
     supabase.from('attendance_logs').select('*', { count: 'exact', head: true })
       .eq('school_id', schoolId).gte('scanned_at', todayStart).lt('scanned_at', tomorrowStart),
-    supabase.from('payments')
-      .select('id, amount, created_at, status, students(nombres, apellidos)')
-      .eq('school_id', schoolId).order('created_at', { ascending: false }).limit(5),
+    supabase.from('payment_plans')
+      .select('id, student_id')
+      .eq('school_id', schoolId)
+      .is('deleted_at', null),
   ])
 
+  if (studentsRes.error) throw new Error(studentsRes.error.message)
+  if (paymentsRes.error) throw new Error(paymentsRes.error.message)
+  if (attendanceRes.error) throw new Error(attendanceRes.error.message)
+  if (paymentPlansRes.error) throw new Error(paymentPlansRes.error.message)
+
   const studentCount = studentsRes.count ?? 0
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const monthlyIncome = (incomeRes.data ?? []).reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const totalDebt = (debtRes.data ?? []).reduce((s: number, d: any) => s + (Number(d.debt_amount) || 0), 0)
   const todayAttendance = attendanceRes.count ?? 0
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recentPayments = (paymentsRes.data ?? []) as any[]
+  const payments = (paymentsRes.data ?? []) as any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const paymentPlans = (paymentPlansRes.data ?? []) as any[]
+
+  const paymentPlanIds = paymentPlans
+    .map((plan) => plan.id as string | null | undefined)
+    .filter((value): value is string => Boolean(value))
+
+  const installmentsRes = paymentPlanIds.length === 0
+    ? { data: [], error: null }
+    : await supabase
+        .from('installments')
+        .select('payment_plan_id, amount_due, amount_paid, status, due_date, deleted_at')
+        .in('payment_plan_id', paymentPlanIds)
+        .is('deleted_at', null)
+
+  if (installmentsRes.error) throw new Error(installmentsRes.error.message)
+
+  const studentsForPaymentsRes = studentCount === 0
+    ? { data: [], error: null }
+    : await supabase
+        .from('students')
+        .select('id, nombres, apellidos')
+        .eq('school_id', schoolId)
+        .is('deleted_at', null)
+
+  if (studentsForPaymentsRes.error) throw new Error(studentsForPaymentsRes.error.message)
+
+  const totalIncome = payments.reduce((sum: number, payment: any) => sum + (Number(payment.amount) || 0), 0)
+  const monthlyIncome = payments.reduce((sum: number, payment: any) => {
+    const paidAt = payment.paid_at as string | null
+    if (!paidAt || paidAt < thirtyDaysAgo) return sum
+    return sum + (Number(payment.amount) || 0)
+  }, 0)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const installments = (installmentsRes.data ?? []) as any[]
+  const pendingInstallments = installments.filter((installment) => installment.status !== 'pagado')
+  const totalDebt = pendingInstallments.reduce((sum: number, installment: any) => {
+    const amountDue = Number(installment.amount_due) || 0
+    const amountPaid = Number(installment.amount_paid) || 0
+    return sum + Math.max(amountDue - amountPaid, 0)
+  }, 0)
+  const attendanceRate = studentCount > 0 ? Math.min((todayAttendance / studentCount) * 100, 100) : 0
+
+  const paymentPlanToStudentMap = new Map<string, string>()
+  for (const plan of paymentPlans) {
+    const paymentPlanId = plan.id as string | null | undefined
+    const studentId = plan.student_id as string | null | undefined
+    if (paymentPlanId && studentId) paymentPlanToStudentMap.set(paymentPlanId, studentId)
+  }
+
+  const studentNameMap = new Map<string, string>()
+  for (const student of (studentsForPaymentsRes.data ?? []) as any[]) {
+    const studentId = student.id as string | null | undefined
+    if (!studentId) continue
+    const fullName = `${(student.apellidos as string | null) ?? ''}, ${(student.nombres as string | null) ?? ''}`.trim().replace(/^,\s*/, '') || '—'
+    studentNameMap.set(studentId, fullName)
+  }
+
+  const recentPayments = payments.slice(0, 10).map((payment: any) => {
+    const paymentPlanId = payment.payment_plan_id as string | null
+    const studentId = paymentPlanId ? paymentPlanToStudentMap.get(paymentPlanId) ?? null : null
+    return {
+      id: payment.id as string,
+      amount: Number(payment.amount) || 0,
+      method: (payment.method as string | null) ?? '—',
+      paidAt: (payment.paid_at as string | null) ?? '',
+      studentName: studentId ? studentNameMap.get(studentId) ?? '—' : '—',
+      status: 'completado',
+    }
+  })
 
   const dateLabel = now.toLocaleDateString('es-PE', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -173,7 +247,7 @@ async function DashboardData() {
     {
       label: 'Alumnos matriculados',
       value: studentCount.toString(),
-      sub: 'Total del ciclo activo',
+      sub: `Activos: ${studentCount}`,
       accent: 'from-blue-600/15 to-blue-600/5',
       valueClassName: 'text-blue-700',
       iconWrapClassName: 'bg-blue-50 text-blue-700',
@@ -185,9 +259,9 @@ async function DashboardData() {
       ),
     },
     {
-      label: 'Ingresos (30 días)',
-      value: formatSoles(monthlyIncome),
-      sub: 'Pagos completados recientes',
+      label: 'Ingresos',
+      value: formatSoles(totalIncome),
+      sub: `Mes: ${formatSoles(monthlyIncome)}`,
       accent: 'from-green-600/15 to-green-600/5',
       valueClassName: 'text-green-700',
       iconWrapClassName: 'bg-green-50 text-green-700',
@@ -199,9 +273,9 @@ async function DashboardData() {
       ),
     },
     {
-      label: 'Deuda total',
+      label: 'Deuda pendiente',
       value: formatSoles(totalDebt),
-      sub: 'Pendiente de cobro',
+      sub: `${pendingInstallments.length} cuotas pendientes`,
       accent: 'from-red-600/15 to-red-600/5',
       valueClassName: 'text-red-700',
       iconWrapClassName: 'bg-red-50 text-red-700',
@@ -215,7 +289,7 @@ async function DashboardData() {
     {
       label: 'Asistencia hoy',
       value: todayAttendance.toString(),
-      sub: 'Scans QR del día',
+      sub: `Tasa: ${attendanceRate.toFixed(0)}%`,
       accent: 'from-yellow-500/20 to-yellow-500/5',
       valueClassName: 'text-yellow-700',
       iconWrapClassName: 'bg-yellow-50 text-yellow-700',
@@ -311,17 +385,12 @@ async function DashboardData() {
           <div>
             <div className="space-y-3 p-4 md:hidden">
               {recentPayments.map((p) => {
-                const student = p.students as { nombres?: string; apellidos?: string } | null
-                const name = student
-                  ? `${student.apellidos ?? ''}, ${student.nombres ?? ''}`.trim().replace(/^,\s*/, '')
-                  : '—'
-
                 return (
                   <article key={p.id} className="rounded-2xl border border-gray-200 bg-gray-50/60 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-gray-900">{name}</p>
-                        <p className="mt-1 text-xs text-gray-500">{formatDate(p.created_at)}</p>
+                        <p className="truncate text-sm font-semibold text-gray-900">{p.studentName}</p>
+                        <p className="mt-1 text-xs text-gray-500">{formatDate(p.paidAt)}</p>
                       </div>
                       <StatusBadge status={p.status} />
                     </div>
@@ -329,7 +398,11 @@ async function DashboardData() {
                     <div className="mt-4 flex items-end justify-between gap-3">
                       <div>
                         <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">Monto</p>
-                        <p className="mt-1 text-sm font-semibold text-gray-700">{formatSoles(Number(p.amount))}</p>
+                        <p className="mt-1 text-sm font-semibold text-gray-700">{formatSoles(p.amount)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">Método</p>
+                        <p className="mt-1 text-sm font-semibold capitalize text-gray-700">{p.method}</p>
                       </div>
                     </div>
                   </article>
@@ -343,22 +416,19 @@ async function DashboardData() {
                   <tr className="bg-gray-50/80">
                     <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Alumno</th>
                     <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Monto</th>
+                    <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Método</th>
                     <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Fecha</th>
                     <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Estado</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {recentPayments.map((p) => {
-                    const student = p.students as { nombres?: string; apellidos?: string } | null
-                    const name = student
-                      ? `${student.apellidos ?? ''}, ${student.nombres ?? ''}`.trim().replace(/^,\s*/, '')
-                      : '—'
-
                     return (
                       <tr key={p.id} className="transition-colors hover:bg-gray-50/70">
-                        <td className="max-w-[220px] px-5 py-4 font-semibold text-gray-800">{name}</td>
-                        <td className="px-5 py-4 text-sm font-semibold text-gray-700">{formatSoles(Number(p.amount))}</td>
-                        <td className="px-5 py-4 text-sm text-gray-500">{formatDate(p.created_at)}</td>
+                        <td className="max-w-[220px] px-5 py-4 font-semibold text-gray-800">{p.studentName}</td>
+                        <td className="px-5 py-4 text-sm font-semibold text-gray-700">{formatSoles(p.amount)}</td>
+                        <td className="px-5 py-4 text-sm capitalize text-gray-600">{p.method}</td>
+                        <td className="px-5 py-4 text-sm text-gray-500">{formatDate(p.paidAt)}</td>
                         <td className="px-5 py-4"><StatusBadge status={p.status} /></td>
                       </tr>
                     )
