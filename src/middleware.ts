@@ -39,14 +39,14 @@ export async function middleware(request: NextRequest) {
     const isPublicRoute = PUBLIC_ROUTES.has(pathname)
 
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+      data: { session },
+    } = await supabase.auth.getSession()
 
-    if (!user && !isPublicRoute) {
+    if (!session && !isPublicRoute) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    if (user && isPublicRoute) {
+    if (session && isPublicRoute) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
@@ -59,6 +59,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/auth|api/stripe/webhook|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/auth|api/stripe/webhook|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
