@@ -120,7 +120,6 @@ export async function createQuickPayment(input: QuickPaymentInput) {
     amount: parsed.amount,
     method: parsed.method,
     reference: parsed.reference || null,
-    status: 'completed',
     created_by: user.id,
   }
 
