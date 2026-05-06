@@ -141,7 +141,6 @@ async function DashboardData() {
         .from('installments')
         .select('payment_plan_id, amount_due, amount_paid, status, due_date, deleted_at')
         .in('payment_plan_id', paymentPlanIds)
-        .is('deleted_at', null)
 
   if (installmentsRes.error) throw new Error(installmentsRes.error.message)
 
