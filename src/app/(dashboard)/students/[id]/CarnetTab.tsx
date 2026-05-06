@@ -15,6 +15,11 @@ export default function CarnetTab({
   const cardRef = useRef<HTMLDivElement>(null)
   const [isExporting, setIsExporting] = useState(false)
 
+  async function loadHtml2Pdf() {
+    const module = await import('html2pdf.js')
+    return module.default as any
+  }
+
   if (!studentCode || !qrValue) {
     return (
       <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-10 text-center">
@@ -30,7 +35,7 @@ export default function CarnetTab({
     setIsExporting(true)
 
     try {
-      const html2pdf = (await import('html2pdf.js')).default as any
+      const html2pdf = await loadHtml2Pdf()
 
       await html2pdf()
         .set({
