@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import QuickPaymentModal from '@/components/payments/QuickPaymentModal'
 
 export interface AlumnoRow {
@@ -43,7 +43,13 @@ function statusForRow(row: AlumnoRow) {
   return { label: 'Debe pagar', icon: '🟡', className: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' }
 }
 
-export default function AlumnosTable({ rows }: { rows: AlumnoRow[] }) {
+export default function AlumnosTable({
+  rows,
+  selectedStudentId,
+}: {
+  rows: AlumnoRow[]
+  selectedStudentId?: string | null
+}) {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<AlumnoRow | null>(null)
 
@@ -56,6 +62,16 @@ export default function AlumnosTable({ rows }: { rows: AlumnoRow[] }) {
       return haystack.includes(needle)
     })
   }, [query, rows])
+
+  useEffect(() => {
+    if (!selectedStudentId) return
+
+    const matched = rows.find((row) => row.id === selectedStudentId) ?? null
+    if (matched) {
+      setSelected(matched)
+      setQuery(matched.fullName)
+    }
+  }, [rows, selectedStudentId])
 
   return (
     <div className="space-y-5">

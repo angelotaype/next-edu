@@ -88,8 +88,13 @@ async function getAlumnos(): Promise<AlumnoRow[]> {
     .sort((a, b) => b.overdueDebt - a.overdueDebt || b.debtTotal - a.debtTotal || a.fullName.localeCompare(b.fullName))
 }
 
-export default async function PagoRapidoPage() {
+export default async function PagoRapidoPage({
+  searchParams,
+}: {
+  searchParams?: { studentId?: string }
+}) {
   const rows = await getAlumnos()
+  const selectedStudentId = searchParams?.studentId ?? null
 
   return (
     <div className="mx-auto w-full max-w-7xl">
@@ -103,7 +108,7 @@ export default async function PagoRapidoPage() {
         </div>
       </div>
 
-      <AlumnosTable rows={rows} />
+      <AlumnosTable rows={rows} selectedStudentId={selectedStudentId} />
     </div>
   )
 }

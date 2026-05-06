@@ -136,7 +136,7 @@ export default function MorososTable({ rows }: { rows: MorosoRow[] }) {
                     Ver detalle
                   </Link>
                   <Link
-                    href={`/students/${row.studentId}?tab=payments`}
+                    href={`/pagos/rapido?studentId=${row.studentId}`}
                     className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700"
                   >
                     Pago rápido
@@ -185,7 +185,7 @@ export default function MorososTable({ rows }: { rows: MorosoRow[] }) {
                           Ver detalle
                         </Link>
                         <Link
-                          href={`/students/${row.studentId}?tab=payments`}
+                          href={`/pagos/rapido?studentId=${row.studentId}`}
                           className="inline-flex min-h-11 items-center rounded-xl bg-blue-600 px-3 text-sm font-medium text-white transition hover:bg-blue-700"
                         >
                           Pago rápido
