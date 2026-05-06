@@ -13,6 +13,8 @@ export interface MorosoRow {
   dueDate: string | null
   daysLate: number
   state: 'VENCIDO' | 'POR_VENCER'
+  paymentStatus: string
+  overdueDebt: number
 }
 
 type FilterValue = 'todos' | 'vencido' | 'por_vencer'
@@ -45,7 +47,7 @@ function stateClasses(state: MorosoRow['state']) {
 }
 
 function dueText(row: MorosoRow) {
-  return row.state === 'VENCIDO' ? `${row.daysLate} días vencido` : 'Por vencer'
+  return row.state === 'VENCIDO' ? `${row.daysLate} días vencido` : row.paymentStatus
 }
 
 export default function MorososTable({ rows }: { rows: MorosoRow[] }) {

@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation'
-import { differenceInCalendarDays } from 'date-fns'
 import { createClient } from '@/lib/supabase/server'
 import MorososTable, { type MorosoRow } from './MorososTable'
 
@@ -19,126 +18,98 @@ async function getMorososRows(): Promise<MorosoRow[]> {
 
   if (!user) redirect('/login')
 
-  const [enrollmentsRes, installmentsRes] = await Promise.all([
-    db
-      .from('enrollments')
-      .select(`
-        id,
-        student_id,
-        cycle_id,
-        classroom_id,
-        students ( id, nombres, apellidos ),
-        cycles ( id, name, start_date ),
-        classrooms ( id, name )
-      `),
-    db
-      .from('installments')
-      .select('id, enrollment_id, amount_due, due_date, status')
-      .neq('status', 'pagado')
-      .order('due_date', { ascending: true }),
-  ])
+  const { data: profile, error: profileError } = await db
+    .from('profiles')
+    .select('school_id')
+    .eq('id', user.id)
+    .single()
 
-  if (enrollmentsRes.error) throw new Error(enrollmentsRes.error.message)
-  if (installmentsRes.error) throw new Error(installmentsRes.error.message)
+  const schoolId = (profile as { school_id?: string } | null)?.school_id
 
-  const enrollments = (enrollmentsRes.data ?? []) as any[]
-  const installments = (installmentsRes.data ?? []) as any[]
-
-  const enrollmentMap = new Map<string, any>()
-  for (const enrollment of enrollments) {
-    if (enrollment?.id) enrollmentMap.set(enrollment.id as string, enrollment)
+  if (profileError || !schoolId) {
+    throw new Error('No se pudo resolver el colegio actual.')
   }
 
-  const enrollmentIds = Array.from(
-    new Set(
-      installments
-        .map((installment) => installment.enrollment_id as string | null | undefined)
-        .filter((value): value is string => Boolean(value))
-    )
-  )
+  const { data: debtRows, error: debtError } = await db
+    .from('student_qr_status')
+    .select('*')
+    .eq('school_id', schoolId)
+    .gt('total_debt', 0)
+    .order('overdue_debt', { ascending: false })
+    .order('apellidos', { ascending: true })
 
-  const studentIds = Array.from(
-    new Set(
-      enrollmentIds
-        .map((id) => {
-          const enrollment = enrollmentMap.get(id)
-          return (enrollment?.student_id as string | null | undefined) ?? (enrollment?.students?.id as string | null | undefined)
-        })
-        .filter((value): value is string => Boolean(value))
-    )
-  )
+  if (debtError) throw new Error(debtError.message)
 
-  const paymentsRes = studentIds.length === 0
-    ? { data: [], error: null }
-    : await db
-        .from('payments')
-        .select('student_id, created_at, status')
-        .in('student_id', studentIds)
-        .order('created_at', { ascending: false })
+  const students = (debtRows ?? []) as any[]
+  const studentIds = students
+    .map((student) => student.id as string | null | undefined)
+    .filter((value): value is string => Boolean(value))
+  const paymentPlanIds = students
+    .map((student) => student.payment_plan_id as string | null | undefined)
+    .filter((value): value is string => Boolean(value))
 
+  const [studentsMetaRes, paymentsRes] = await Promise.all([
+    studentIds.length === 0
+      ? Promise.resolve({ data: [], error: null })
+      : db
+          .from('students')
+          .select(`
+            id,
+            cycles!cycle_id ( id, name ),
+            classrooms!classroom_id ( id, name )
+          `)
+          .in('id', studentIds),
+    paymentPlanIds.length === 0
+      ? Promise.resolve({ data: [], error: null })
+      : db
+          .from('payments')
+          .select('payment_plan_id, paid_at')
+          .in('payment_plan_id', paymentPlanIds)
+          .order('paid_at', { ascending: false }),
+  ])
+
+  if (studentsMetaRes.error) throw new Error(studentsMetaRes.error.message)
   if (paymentsRes.error) throw new Error(paymentsRes.error.message)
+
+  const studentMetaMap = new Map<string, any>()
+  for (const student of (studentsMetaRes.data ?? []) as any[]) {
+    const studentId = student.id as string | null | undefined
+    if (studentId) studentMetaMap.set(studentId, student)
+  }
 
   const lastPaymentMap = new Map<string, string>()
   for (const payment of (paymentsRes.data ?? []) as any[]) {
-    const studentId = payment.student_id as string | null
-    const createdAt = payment.created_at as string | null
-    if (!studentId || !createdAt || lastPaymentMap.has(studentId)) continue
-    lastPaymentMap.set(studentId, createdAt)
+    const paymentPlanId = payment.payment_plan_id as string | null | undefined
+    const paidAt = payment.paid_at as string | null | undefined
+    if (paymentPlanId && paidAt && !lastPaymentMap.has(paymentPlanId)) {
+      lastPaymentMap.set(paymentPlanId, paidAt)
+    }
   }
 
-  const grouped = new Map<string, MorosoRow>()
-  const today = new Date()
+  return students.map((student) => {
+    const studentId = student.id as string
+    const meta = studentMetaMap.get(studentId) ?? null
+    const cycle = meta?.cycles as { name?: string | null } | null
+    const classroom = meta?.classrooms as { name?: string | null } | null
+    const overdueDebt = Number(student.overdue_debt) || 0
+    const nextDueDate = (student.next_due_date as string | null) ?? null
 
-  for (const installment of installments) {
-    const enrollmentId = installment.enrollment_id as string | null
-    if (!enrollmentId) continue
-
-    const enrollment = enrollmentMap.get(enrollmentId)
-    if (!enrollment) continue
-
-    const student = enrollment.students as { id?: string | null; nombres?: string | null; apellidos?: string | null } | null
-    const cycle = enrollment.cycles as { name?: string | null; start_date?: string | null } | null
-    const classroom = enrollment.classrooms as { name?: string | null } | null
-    const studentId = (student?.id as string | null | undefined) ?? (enrollment.student_id as string | null | undefined)
-
-    if (!studentId) continue
-
-    const amount = typeof installment.amount_due === 'number' ? installment.amount_due : Number(installment.amount_due) || 0
-    const dueDate = (installment.due_date as string | null) ?? null
-
-    const existing = grouped.get(studentId)
-    if (!existing) {
-      const daysLate = dueDate ? differenceInCalendarDays(today, new Date(dueDate)) : 0
-      grouped.set(studentId, {
+      return {
         studentId,
-        fullName: studentFullName(student ?? {}),
-        cycleName: (cycle?.name as string | null) ?? null,
-        classroomName: (classroom?.name as string | null) ?? null,
-        debtTotal: amount,
-        lastPaymentAt: lastPaymentMap.get(studentId) ?? null,
-        dueDate,
-        daysLate: daysLate > 0 ? daysLate : 0,
-        state: daysLate > 0 ? 'VENCIDO' : 'POR_VENCER',
-      })
-      continue
-    }
-
-    existing.debtTotal += amount
-
-    if (dueDate && (!existing.dueDate || new Date(dueDate) < new Date(existing.dueDate))) {
-      const daysLate = differenceInCalendarDays(today, new Date(dueDate))
-      existing.dueDate = dueDate
-      existing.daysLate = daysLate > 0 ? daysLate : 0
-      existing.state = daysLate > 0 ? 'VENCIDO' : 'POR_VENCER'
-    }
-  }
-
-  return Array.from(grouped.values()).sort((a, b) => {
-    if (!a.dueDate && !b.dueDate) return 0
-    if (!a.dueDate) return 1
-    if (!b.dueDate) return -1
-    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-  })
+        fullName: studentFullName(student),
+        cycleName: cycle?.name ?? null,
+        classroomName: classroom?.name ?? null,
+      debtTotal: Number(student.total_debt) || 0,
+      lastPaymentAt: lastPaymentMap.get((student.payment_plan_id as string | null) ?? '') ?? null,
+      dueDate: nextDueDate,
+        daysLate: overdueDebt > 0 && nextDueDate
+          ? Math.max(0, Math.floor((Date.now() - new Date(nextDueDate).getTime()) / (1000 * 60 * 60 * 24)))
+          : 0,
+        state: (overdueDebt > 0 ? 'VENCIDO' : 'POR_VENCER') as MorosoRow['state'],
+        paymentStatus: (student.payment_status as string | null) ?? 'Debe pagar',
+        overdueDebt,
+      }
+  }).sort((a, b) => b.overdueDebt - a.overdueDebt || b.debtTotal - a.debtTotal || a.fullName.localeCompare(b.fullName))
 }
 
 export default async function MorososPage() {
